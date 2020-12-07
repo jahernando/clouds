@@ -91,7 +91,7 @@ def clouds(coors, steps, weights):
     bins, cells, cells_ene, \
     cells_kid                   = clouds_potential(coors, steps, weights)
     ndim, nsize                 = clouds_size(cells, cells_ene)
-    print(' clouds size ', ndim, nsize)
+    #print(' clouds size ', ndim, nsize)
     cells_neighbours            = clouds_neighbours(bins, cells, cells_ene)
     cells_egrad, cells_epath    = clouds_gradient (bins, cells, cells_ene,
                                                    cells_kid)
