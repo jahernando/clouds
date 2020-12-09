@@ -276,11 +276,9 @@ def dcloud_steps_tracks(dfclouds, ndim, ncolumns = 1, scale = 1000., xaxis = 0, 
 
     subplot(2, sdim)
     plt.title('tracks')
-    print(tpass[tpass > -1])
     dcloud_tracks(cells, track, tnode, tpass, enodes, epass, epath, lpath,
                   scale = scale, xaxis = xaxis, **kargs)
 
-    print(tpass[tpass > -1])
     subplot(3, sdim)
     plt.title('rangers')
     dcloud_tracks(cells, ranger, tnode, tpass, eranger, epass, epath, lpath,
