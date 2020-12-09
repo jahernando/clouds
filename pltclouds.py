@@ -40,7 +40,7 @@ def canvas(ns : int, ny : int = 2, height : float = 5., width : float = 6.) -> c
         if (dim == '3d'):
             nn = nx * 100 +ny *10 + iplot
             plt.gcf().add_subplot(nn, projection = dim)
-        return nx, ny
+        return plt.gca()
     return subplot
 
 
