@@ -263,7 +263,7 @@ def dcloud_tracks_3dviews(dfclouds, ncolumns = 2, xaxis = 0, **kargs):
             ax = plt.gca()
             ax.set_xlabel(xlabels[i]); ax.set_ylabel(xlabels[i+1]); ax.set_zlabel(xlabels[i+2])
 
-    for ii, i in enumerate([0, 2]):
+    for ii, i in enumerate([0, 1, 2]):
         _view(i, ii)
 
     return
