@@ -222,7 +222,7 @@ def dcloud_steps_tracks(dfclouds, ndim, ncolumns = 1, scale = 1000., xaxis = 0, 
     return
 
 
-def dcloud_tracks_3dviews(dfclouds, ncolumns = 2, xaxis = 0, **kargs):
+def dcloud_tracks_3dviews(dfclouds, ncolumns = 2, scale = 1000., xaxis = 0, **kargs):
 
     ndim   = 3
     cells  = get_cells(dfclouds, ndim)
@@ -238,7 +238,6 @@ def dcloud_tracks_3dviews(dfclouds, ncolumns = 2, xaxis = 0, **kargs):
     tpass  = dfclouds.tpass.values
 
     sdim   = '3d' if ndim == 3 else '2d'
-    scale  = 1000.
     rscale = 5.
 
     subplot = canvas(4, ncolumns, 10, 12)
