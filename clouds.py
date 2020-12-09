@@ -182,8 +182,8 @@ def clouds_potential(coors, steps, weights):
     nsize        = len(enes)
     kids         = np.arange(nsize)
 
-    centers      = [centers(ibin) for ibin in bins]
-    cells        = [centers[i][icells[i]] for i in range(ndim)]
+    xcenters     = [(ibin) for ibin in bins]
+    cells        = [xcenters[i][icells[i]] for i in range(ndim)]
 
     return bins, cells, enes, kids.astype(int)
 
