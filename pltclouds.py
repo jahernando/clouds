@@ -222,46 +222,154 @@ def dcloud_steps_tracks(dfclouds, ndim, ncolumns = 1, scale = 1000., xaxis = 0, 
     return
 
 
-def dcloud_tracks_3dviews(dfclouds, ncolumns = 2, scale = 1000., xaxis = 0, **kargs):
+racks(cells, track, tnode, tpass, enodes, epass, epath, lpath,
+                  scale = 1000., xaxis = 0, **kargs):
+
+    rscale = 5.
+
+    kidtrack = np.unique(track[track >= 0])
+    for ii, kid in enumerate(kidtrack):
+        sel  = track == kid
+        dcloud_cells(_csel(cells, sel), alpha = 0.05, xaxis = xaxis)
+        sel  = tnode == kid
+        dcloud_nodes(_csel(cells, sel), scale * enodes[sel],  alpha = 0.8,
+                           marker = 'o', xaxis = xaxis)
+        sel  = tpass == kid
+        dcloud_nodes(_csel(cells, sel), rscale * scale * epass[sel], alpha = 0.9,
+                               marker = '^',  xaxis = xaxis)
+
+        dcloud_segments(cells, np.argwhere(sel), epath, lpath, xaxis = xaxis)
+    return
+
+
+
+def dcloud_steps_tracks(dfclouds, ndim, ncolumns = 1, scale = 1000., xaxis = 0, **kargs):
+
+    cells   = get_cells(dfclouds, ndim)
+    enes    = dfclouds.ene.values
+    enodes  = dfclouds.enode.values
+    nodes   = dfclouds.node.values
+    epath   = dfclouds.epath.values
+    lpath   = dfclouds.lpath.values
+    epass   = dfclouds.epass.values
+
+    track   = dfclouds.track.values
+    tnode   = dfclouds.tnode.values
+    tpass   = dfclouds.tpass.values
+
+    ranger  = dfclouds.ranger.values
+    eranger = dfclouds.eranger.values
+
+    rscale = 5.
+    sdim   = '3d' if ndim == 3 else '2d'
+
+    subplot = canvas(3, ncolumns, 10, 12)
+
+    subplot(1, sdim)
+    plt.title('paths')
+    dcloud_cells   (cells, alpha = 0.05, xaxis = xaxis);
+    dcloud_nodes   (cells, scale * enodes, alpha = 0.8, marker = 'o', xaxis = xaxis)
+    dcloud_nodes   (cells, rscale * scale * epass , marker = '^', alpha = 0.9, xaxis = xaxis)
+    kids  = np.argwhere(epass > 0)
+    dcloud_segments(cells, kids, epath, lpath, xaxis = xaxis)
+    plt.title('paths between passes')
+
+    subplot(2, sdim)
+    plt.title('tracks')
+    print(tpass[tpass > -1])
+    dcloud_tracks(cells, track, tnode, tpass, enodes, epass, epath, lpath,
+                  scale = scale, xaxis = xaxis, **kargs)
+
+    print(tpass[tpass > -1])
+    subplot(3, sdim)
+    plt.title('rangers')
+    dcloud_tracks(cells, ranger, tnode, tpass, eranger, epass, epath, lpath,
+                   scale = scale, xaxis = xaxis, **kargs)
+
+    return
+
+
+def dcloud_tracks_3dviews(dfclouds, ncolumns = 2, type = 'ranger', scale = 1000., xaxis = 0, **kargs):
 
     ndim   = 3
+
     cells  = get_cells(dfclouds, ndim)
     enes   = dfclouds.ene.values
     enodes = dfclouds.enode.values
-    #nodes  = dfclouds.node.values
+    epass  = dfclouds.epass.values
+
     epath  = dfclouds.epath.values
     lpath  = dfclouds.lpath.values
-    epass  = dfclouds.epass.values
 
     track  = dfclouds.track.values
     tnode  = dfclouds.tnode.values
     tpass  = dfclouds.tpass.values
 
-    sdim   = '3d' if ndim == 3 else '2d'
-    rscale = 5.
+    ranger  = dfclouds.ranger.values
+    eranger = dfclouds.eranger.values
+
+    sdim   = '3d'
 
     subplot = canvas(4, ncolumns, 10, 12)
 
     xlabels = 2 * ['x (mm)', 'y (mm)', 'z (mm)']
 
-    def _view(i, ii):
-        subplot(ii + 1, sdim)
-        plt.title('view ' + str(i))
-        kidtrack = np.unique(track)
-        for ii, kid in enumerate(kidtrack):
-            sel  = track == kid
-            dcloud_cells(_csel(cells, sel), alpha = 0.05, xaxis = i)
-            sel  = tnode == kid
-            dcloud_nodes(_csel(cells, sel), scale * enodes[sel],  alpha = 0.8,
-                               marker = 'o', xaxis = i)
-            sel  = tpass == kid
-            dcloud_nodes(_csel(cells, sel), rscale * scale * epass[sel], alpha = 0.9,
-                                   marker = '^',  xaxis = i)
-            dcloud_segments(cells, np.argwhere(sel), epath, lpath, xaxis = i)
-            ax = plt.gca()
-            ax.set_xlabel(xlabels[i]); ax.set_ylabel(xlabels[i+1]); ax.set_zlabel(xlabels[i+2])
+    xtrack = track  if type != 'ranger' else ranger
+    xene   = enodes if type != 'ranger' else eranger
 
-    for ii, i in enumerate([0, 1, 2]):
-        _view(i, ii)
+    def _view(i):
+        subplot(i + 1, sdim)
+        plt.title(type + ' view ' + str(i))
+        dcloud_tracks(cells, xtrack, tnode, tpass, xene, epass, epath, lpath,
+                      scale = scale, xaxis = i, **kargs)
+
+
+    for i in [0, 1, 2]: _view(i)
 
     return
+
+#
+#
+# def dcloud_tracks_3dviews(dfclouds, ncolumns = 2, scale = 1000., xaxis = 0, **kargs):
+#
+#     ndim   = 3
+#     cells  = get_cells(dfclouds, ndim)
+#     enes   = dfclouds.ene.values
+#     enodes = dfclouds.enode.values
+#     #nodes  = dfclouds.node.values
+#     epath  = dfclouds.epath.values
+#     lpath  = dfclouds.lpath.values
+#     epass  = dfclouds.epass.values
+#
+#     track  = dfclouds.track.values
+#     tnode  = dfclouds.tnode.values
+#     tpass  = dfclouds.tpass.values
+#
+#     sdim   = '3d' if ndim == 3 else '2d'
+#     rscale = 5.
+#
+#     subplot = canvas(4, ncolumns, 10, 12)
+#
+#     xlabels = 2 * ['x (mm)', 'y (mm)', 'z (mm)']
+#
+#     def _view(i, ii):
+#         subplot(ii + 1, sdim)
+#         plt.title('view ' + str(i))
+#         kidtrack = np.unique(track)
+#         for ii, kid in enumerate(kidtrack):
+#             sel  = track == kid
+#             dcloud_cells(_csel(cells, sel), alpha = 0.05, xaxis = i)
+#             sel  = tnode == kid
+#             dcloud_nodes(_csel(cells, sel), scale * enodes[sel],  alpha = 0.8,
+#                                marker = 'o', xaxis = i)
+#             sel  = tpass == kid
+#             dcloud_nodes(_csel(cells, sel), rscale * scale * epass[sel], alpha = 0.9,
+#                                    marker = '^',  xaxis = i)
+#             dcloud_segments(cells, np.argwhere(sel), epath, lpath, xaxis = i)
+#             ax = plt.gca()
+#             ax.set_xlabel(xlabels[i]); ax.set_ylabel(xlabels[i+1]); ax.set_zlabel(xlabels[i+2])
+#
+#     for ii, i in enumerate([0, 1, 2]):
+#         _view(i, ii)
+#
+#     return
