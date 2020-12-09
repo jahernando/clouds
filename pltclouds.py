@@ -124,7 +124,7 @@ def dcloud_segments(cells, kids, epath, lpath, xaxis = 0, **kargs):
 #  High Level
 #
 
-def dcloud_steps(dfclouds, ndim, xaxis = 0, ncolumns = 1):
+def dcloud_steps(dfclouds, ndim, scale = 1000., rscale = 5., xaxis = 0, ncolumns = 1):
     """ Draw every step of clouds: i) gradients, ii) nodes, ii) links kk) paths
     """
 
@@ -141,33 +141,33 @@ def dcloud_steps(dfclouds, ndim, xaxis = 0, ncolumns = 1):
     subplot = canvas(6, ncolumns, 10, 12)
 
     subplot(1, sdim) # cloud
-    dcloud_cells(cells, 1000. * enes, alpha = 0.3, xaxis = xaxis);
+    dcloud_cells(cells, scale * enes, alpha = 0.3, xaxis = xaxis);
     #dcloud_grad(cells, epath, xaxis = xaxis)
 
     subplot(2, sdim) # gradient (cloud)
-    dcloud_cells(cells, 1000. * enes, alpha = 0.05, xaxis = xaxis);
+    dcloud_cells(cells, scale * enes, alpha = 0.05, xaxis = xaxis);
     dcloud_grad(cells, epath, xaxis = xaxis)
 
     subplot(3, sdim) # nodes (grandient, cloud)
     dcloud_cells(cells, nodes, alpha = 0.05, xaxis = xaxis);
     dcloud_grad (cells, epath, alpha = 0.1, xaxis = xaxis)
-    dcloud_nodes(cells, 1000. * enodes, marker = 'o', alpha = 0.8, xaxis = xaxis)
+    dcloud_nodes(cells, scale * enodes, marker = 'o', alpha = 0.8, xaxis = xaxis)
 
     subplot(4, sdim) # links (nodes, cloud)
-    dcloud_cells(cells, 1000. * nodes, alpha = 0.01, xaxis = xaxis);
+    dcloud_cells(cells, scale * nodes, alpha = 0.01, xaxis = xaxis);
     dcloud_grad (cells, lpath, xaxis = xaxis)
-    dcloud_nodes(cells, 1000. * enodes, marker = 'o', alpha = 0.2, xaxis = xaxis)
+    dcloud_nodes(cells, scale * enodes, marker = 'o', alpha = 0.2, xaxis = xaxis)
 
     subplot(5, sdim) # pass (links, nodes, cloud)
-    dcloud_cells(cells,     1000. * nodes , alpha = 0.01, xaxis = xaxis);
-    dcloud_nodes(cells,     1000. * enodes, marker = 'o', alpha = 0.2, xaxis = xaxis)
+    dcloud_cells(cells,     scale * nodes , alpha = 0.01, xaxis = xaxis);
+    dcloud_nodes(cells,     scale * enodes, marker = 'o', alpha = 0.2, xaxis = xaxis)
     dcloud_grad (cells, lpath, alpha = 0.1, xaxis = xaxis)
-    dcloud_nodes(cells, 5 * 1000. * epass , marker = '^', alpha = 0.9, xaxis = xaxis)
+    dcloud_nodes(cells, 5 * scale * epass , marker = '^', alpha = 0.9, xaxis = xaxis)
 
     subplot(6, sdim)
     dcloud_cells   (cells, alpha = 0.05, xaxis = xaxis);
-    dcloud_nodes   (cells, 1000. * enodes, alpha = 0.8, marker = 'o', xaxis = xaxis)
-    dcloud_nodes   (cells, 5 * 1000. * epass , marker = '^', alpha = 0.9, xaxis = xaxis)
+    dcloud_nodes   (cells, scale * enodes, alpha = 0.8, marker = 'o', xaxis = xaxis)
+    dcloud_nodes   (cells, 5 * scale * epass , marker = '^', alpha = 0.9, xaxis = xaxis)
     kids  = np.argwhere(epass > 0)
     dcloud_segments(cells, kids, epath, lpath, xaxis = xaxis)
 
@@ -175,7 +175,7 @@ def dcloud_steps(dfclouds, ndim, xaxis = 0, ncolumns = 1):
 
 
 
-def dcloud_steps_tracks(dfclouds, ndim, ncolumns = 1, xaxis = 0, **kargs):
+def dcloud_steps_tracks(dfclouds, ndim, ncolumns = 1, scale = 1000., xaxis = 0, **kargs):
 
     cells  = get_cells(dfclouds, ndim)
     enes   = dfclouds.ene.values
@@ -190,7 +190,6 @@ def dcloud_steps_tracks(dfclouds, ndim, ncolumns = 1, xaxis = 0, **kargs):
     tpass  = dfclouds.tpass.values
 
     sdim   = '3d' if ndim == 3 else '2d'
-    scale  = 1000.
     rscale = 5.
 
     subplot = canvas(2, ncolumns, 10, 12)
