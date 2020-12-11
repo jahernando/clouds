@@ -223,7 +223,7 @@ def dcloud_steps_tracks(dfclouds, ndim, ncolumns = 1, scale = 1000., xaxis = 0, 
 
 
 def dcloud_tracks(cells, track, tnode, tpass, enodes, epass, epath, lpath,
-                  scale = 1000., xaxis = 0, **kargs):
+                  scale = 1000., xaxis = 0, mc = None, **kargs):
 
     rscale = 5.
 
@@ -237,6 +237,12 @@ def dcloud_tracks(cells, track, tnode, tpass, enodes, epass, epath, lpath,
         sel  = tpass == kid
         dcloud_nodes(_csel(cells, sel), rscale * scale * epass[sel], alpha = 0.9,
                                marker = '^',  xaxis = xaxis)
+
+        if (mc is not None):
+            dcloud_nodes(_csel(cells, sel), rscale * scale * mc[sel], alpha = 0.9,
+                                   marker = '+',  xaxis = xaxis)
+
+
 
         dcloud_segments(cells, np.argwhere(sel), epath, lpath, xaxis = xaxis)
     return
@@ -287,7 +293,11 @@ def dcloud_steps_tracks(dfclouds, ndim, ncolumns = 1, scale = 1000., xaxis = 0, 
     return
 
 
-def dcloud_tracks_3dviews(dfclouds, ncolumns = 2, type = 'ranger', scale = 1000., xaxis = 0, **kargs):
+def dcloud_tracks_3dviews(dfclouds, mc = False, ncolumns = 2, type = 'ranger', views = [0, 1, 2],
+                          scale = 1000., xaxis = 0, **kargs):
+
+    """ TODO plot the MC-tracks
+    """
 
     ndim   = 3
 
@@ -308,7 +318,7 @@ def dcloud_tracks_3dviews(dfclouds, ncolumns = 2, type = 'ranger', scale = 1000.
 
     sdim   = '3d'
 
-    subplot = canvas(4, ncolumns, 10, 12)
+    subplot = canvas(len(views), ncolumns, 10, 12)
 
     xlabels = 2 * ['x (mm)', 'y (mm)', 'z (mm)']
 
@@ -318,11 +328,11 @@ def dcloud_tracks_3dviews(dfclouds, ncolumns = 2, type = 'ranger', scale = 1000.
     def _view(i):
         subplot(i + 1, sdim)
         plt.title(type + ' view ' + str(i))
+        xmc = None if mc is False else dfclouds.mc.values
         dcloud_tracks(cells, xtrack, tnode, tpass, xene, epass, epath, lpath,
-                      scale = scale, xaxis = i, **kargs)
+                      scale = scale, xaxis = i, mc = mc, **kargs)
 
-
-    for i in [0, 1, 2]: _view(i)
+    for i in views: _view(i)
 
     return
 
