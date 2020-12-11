@@ -330,7 +330,7 @@ def dcloud_tracks_3dviews(dfclouds, mc = False, ncolumns = 2, type = 'ranger', v
         plt.title(type + ' view ' + str(i))
         xmc = None if mc is False else dfclouds.mc.values
         dcloud_tracks(cells, xtrack, tnode, tpass, xene, epass, epath, lpath,
-                      scale = scale, xaxis = i, mc = mc, **kargs)
+                      scale = scale, xaxis = i, mc = xmc, **kargs)
 
     for i in views: _view(i)
 
