@@ -117,6 +117,43 @@ def get_moves(ndim):
 #     clouds
 #----------------------
 
+
+
+def get_values_in_cells(coors, steps, weights):
+    """ returns a function to locate values in cells
+    inputs: (same as clouds)
+        coors: tuple(array), m-dim tuple with k-size arrays with the coordinates of the hits
+        steps: tuple(float), m-dim tuple with the size in each coordinate of the cells
+        weights: array, k-size array with the energy/weight of the hits
+    returns:
+        in_cells(xcoors, values):
+            a function that locate that give xcoors (a m-dim tuple with p-size arrays with coordinates)
+            locate the values (a p-size array) into the cells.
+            That function returns an  n-size (n = number of cells) with the values in the cells
+    """
+
+    ndim         = len(coors)
+    bins         = [arstep(x, step, True) for x, step in zip(coors, steps)]
+    potential, _ = np.histogramdd(coors, bins, weights = weights)
+
+    sel          = potential > 0
+    icells       = to_coors(np.argwhere(sel))
+
+    def in_cells(xcoors, values):
+        """ return the values in predefined cells
+        inputs:
+            xcoors: a m-dim tuple of p-size arrays with the coordinates
+            values: a p-size array with the values associated to the coordinates
+        returns:
+            vals  : a n-size array with teh values located in the pre-defined cells (there are n-cells)
+        """
+        hvals, _     = np.histogramdd(xcoors, bins, weights = values)
+        vals         = hvals[icells]
+        return vals
+
+    return in_cells
+
+
 def clouds(coors, steps, weights):
     """
     inputs:
