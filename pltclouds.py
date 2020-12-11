@@ -239,8 +239,8 @@ def dcloud_tracks(cells, track, tnode, tpass, enodes, epass, epath, lpath,
                                marker = '^',  xaxis = xaxis)
 
         if (mc is not None):
-            dcloud_nodes(_csel(cells, sel), rscale * scale * mc[sel], alpha = 0.9,
-                                   marker = '+',  xaxis = xaxis)
+            dcloud_nodes(_csel(cells, sel), 5 * rscale * scale * mc[sel], alpha = 0.9,
+                                   marker = '*',  xaxis = xaxis)
 
 
 
