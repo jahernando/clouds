@@ -147,8 +147,10 @@ def get_values_in_cells(coors, steps, weights):
         returns:
             vals  : a n-size array with teh values located in the pre-defined cells (there are n-cells)
         """
-        hvals, _     = np.histogramdd(xcoors, bins, weights = values)
-        vals         = hvals[icells]
+        hvals, _  = np.histogramdd(xcoors, bins, weights = values)
+        vals      = hvals[icells]
+        vsel      = hvals > 0.
+        assert (np.sum(vsel & sel) != np.sum(vsel)) # selected cells must be pre-defined
         return vals
 
     return in_cells
