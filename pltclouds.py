@@ -439,7 +439,7 @@ def get_draw_clouds(dfclouds, mccoors = None, mcene = None):
             dcloud_grad (cells, lpath, xaxis = xaxis, **kargs)
 
         if (plots['passes']):
-            dcloud_nodes(cells, rscale * scale * epass, marker = '^',
+            dcloud_nodes(cells, rscale * scale * epass, marker = 'd',
                          xaxis = xaxis, label = 'passes', **kargs)
 
         if (plots['segments']):
