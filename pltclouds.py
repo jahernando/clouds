@@ -432,5 +432,17 @@ def get_draw_clouds(coors, steps, ene, mccoors = None, mcene = None):
                 pltclouds.dcloud_segments(cells, np.argwhere(sel),
                                           epath, lpath, xaxis = xaxis, **kargs)
 
+        return
 
-    return draw
+    plots = {}
+    plots['MC-true']     = False
+    plots['MC-cells']    = False
+    plots['MC-tracks']   = False
+    plots['cells']       = True
+    plots['gradients']   = False
+    plots['nodes']       = True
+    plots['links']       = False
+    plots['passes']      = False
+    plots['tracks']      = True
+
+    return draw, plots
