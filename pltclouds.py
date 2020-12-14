@@ -401,11 +401,11 @@ def get_draw_clouds(dfclouds, mccoors = None, mcene = None):
 
 
     plots = {}
-    if (mccoors is not None):
-        mc_true              = True
+    mc_true  = mccoors is not None
+    if (mc_true):
         plots['MC-true']     = False
-    if ('mcene' in list(dfclouds.columns)):
-        mc_cells             = True
+    mc_cells = 'mcene' in list(dfclouds.columns)
+    if (mc_cells):
         plots['MC-cells']    = False
     #plots['MC-tracks']   = False
     plots['cells']       = True
