@@ -385,6 +385,8 @@ def get_draw_clouds(dfclouds, mccoors = None, mcene = None):
     tnode  = dfclouds.tnode.values            # ID of the track of this node (if cell is a node)
     tpass  = dfclouds.tpass.values            # ID of the track of this pass (is pass is a node)
 
+    ranger = dfclouds.ranger.values           # ID of the range
+
     sdim    = '3d' if ndim == 3 else '2d'
 
     xlabels = 2 * ['x (mm)', 'y (mm)', 'z (mm)']
@@ -454,6 +456,13 @@ def get_draw_clouds(dfclouds, mccoors = None, mcene = None):
                 dcloud_segments(cells, np.argwhere(sel), epath, lpath,
                                 xaxis = xaxis, **kargs)
 
+        if (plots['rangers']):
+            kidtrack = np.unique(ranger[ranger >= 0])
+            for ii, kid in enumerate(kidtrack):
+                sel  = tpass == kid
+                dcloud_segments(cells, np.argwhere(sel), epath, lpath,
+                                xaxis = xaxis, **kargs)
+
         _setlabels(xaxis)
         plt.legend()
         return
@@ -470,6 +479,7 @@ def get_draw_clouds(dfclouds, mccoors = None, mcene = None):
     plots['links']       = False
     plots['passes']      = False
     plots['segments']    = False
-    plots['tracks']      = True
+    plots['tracks']      = False
+    plots['ranger']      = True
 
     return draw, plots
