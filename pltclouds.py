@@ -400,6 +400,22 @@ def get_draw_clouds(dfclouds, mccoors = None, mcene = None):
         if (ndim == 3): ax.set_zlabel(xlabels[xaxis + 2])
 
 
+    plots = {}
+    if (mccoors is not None):
+        plots['MC-true']     = False
+    if ('mcene' in list(dfclouds.columns)):
+        plots['MC-cells']    = False
+    #plots['MC-tracks']   = False
+    plots['cells']       = True
+    plots['gradients']   = False
+    plots['nodes']       = True
+    plots['links']       = False
+    plots['passes']      = False
+    plots['segments']    = False
+    plots['tracks']      = False
+    plots['rangers']      = True
+
+
     def draw(plots, xaxis = 0, scale = 1000., rscale = 3., **kargs):
 
         subplot = canvas(1, 1, 10, 12)
@@ -408,13 +424,13 @@ def get_draw_clouds(dfclouds, mccoors = None, mcene = None):
 
         kargs = karg('alpha', 0.5, kargs)
 
-        if (plots['MC-true']):
+        if ('MC-true' in plots.keys()) & (plots['MC-true']):
             assert mccoors is not None
             xxcoors   = _ocells(mccoors, xaxis) if xaxis != 0 else mccoors
             ax.scatter(*xxcoors, c = scale * mcene, s = scale * mcene,
                        marker = '.', label = 'MC-true', **kargs);
 
-        if (plots['MC-cells']):
+        if ('MC-true' in plot.keys()) & plots['MC-cells']:
             assert 'mcene' in list(dfclouds.columns)
             xmcene = dfclouds.mcene.values
             dcloud_nodes(cells, rscale * scale * xmcene, label = 'MC-cells',
