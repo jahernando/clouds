@@ -402,8 +402,10 @@ def get_draw_clouds(dfclouds, mccoors = None, mcene = None):
 
     plots = {}
     if (mccoors is not None):
+        mc_true              = True
         plots['MC-true']     = False
     if ('mcene' in list(dfclouds.columns)):
+        mc_cells             = True
         plots['MC-cells']    = False
     #plots['MC-tracks']   = False
     plots['cells']       = True
@@ -424,17 +426,17 @@ def get_draw_clouds(dfclouds, mccoors = None, mcene = None):
 
         kargs = karg('alpha', 0.5, kargs)
 
-        if ('MC-true' in plots.keys()) & (plots['MC-true']):
-            assert mccoors is not None
-            xxcoors   = _ocells(mccoors, xaxis) if xaxis != 0 else mccoors
-            ax.scatter(*xxcoors, c = scale * mcene, s = scale * mcene,
-                       marker = '.', label = 'MC-true', **kargs);
+        if (mc_true):
+            if plots['MC-true']:
+                xxcoors   = _ocells(mccoors, xaxis) if xaxis != 0 else mccoors
+                ax.scatter(*xxcoors, c = scale * mcene, s = scale * mcene,
+                           marker = '.', label = 'MC-true', **kargs);
 
-        if ('MC-true' in plot.keys()) & plots['MC-cells']:
-            assert 'mcene' in list(dfclouds.columns)
-            xmcene = dfclouds.mcene.values
-            dcloud_nodes(cells, rscale * scale * xmcene, label = 'MC-cells',
-                         marker = 'P', xaxis = xaxis, **kargs);
+        if (mc_cells):
+            if plots['MC-cells']:
+                xmcene = dfclouds.mcene.values
+                dcloud_nodes(cells, rscale * scale * xmcene, label = 'MC-cells',
+                             marker = 'P', xaxis = xaxis, **kargs);
 
 
         # if (plots['MC-tracks']):
@@ -486,20 +488,5 @@ def get_draw_clouds(dfclouds, mccoors = None, mcene = None):
         _setlabels(xaxis)
         plt.legend()
         return
-
-    plots = {}
-    if (mccoors is not None):
-        plots['MC-true']     = False
-    if ('mcene' in list(dfclouds.columns)):
-        plots['MC-cells']    = False
-    #plots['MC-tracks']   = False
-    plots['cells']       = True
-    plots['gradients']   = False
-    plots['nodes']       = True
-    plots['links']       = False
-    plots['passes']      = False
-    plots['segments']    = False
-    plots['tracks']      = False
-    plots['rangers']      = True
 
     return draw, plots
