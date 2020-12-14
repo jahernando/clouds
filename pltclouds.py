@@ -480,6 +480,6 @@ def get_draw_clouds(dfclouds, mccoors = None, mcene = None):
     plots['passes']      = False
     plots['segments']    = False
     plots['tracks']      = False
-    plots['ranger']      = True
+    plots['rangers']      = True
 
     return draw, plots
