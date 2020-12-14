@@ -415,12 +415,12 @@ def get_draw_clouds(dfclouds, mccoors = None, mcene = None):
                          marker = 'P', xaxis = xaxis, **kargs);
 
 
-        if (plots['MC-tracks']):
-            assert mcpaths is not None
-            xcells   = _ocells(cells, xaxis) if xaxis != 0 else cells
-            segments = [clouds.get_segment(xcells, path) for path in mcpaths]
-            for ii, segment in enumerate(segments):
-                plt.plot(*segment, c = 'blue', **kargs)
+        # if (plots['MC-tracks']):
+        #     assert mcpaths is not None
+        #     xcells   = _ocells(cells, xaxis) if xaxis != 0 else cells
+        #     segments = [clouds.get_segment(xcells, path) for path in mcpaths]
+        #     for ii, segment in enumerate(segments):
+        #         plt.plot(*segment, c = 'blue', **kargs)
 
         if (plots['cells']):
             alpha = kargs['alpha']
