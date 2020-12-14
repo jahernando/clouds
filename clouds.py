@@ -418,7 +418,7 @@ def clouds_gradient_link(bins, cells, cells_enes, cells_nodes, cells_kids):
     return link_grad, link_nodes, link_kids
 
 
-def clouds_passes(cells_ene, cells_node, cells_enode, cells_lnode,
+def clouds_passes_save(cells_ene, cells_node, cells_enode, cells_lnode,
                   cells_kid, cells_lgrad, cells_lpath):
 
     nsize  = len(cells_node)
@@ -442,6 +442,35 @@ def clouds_passes(cells_ene, cells_node, cells_enode, cells_lnode,
                 cells_epass[id1] = cells_ene[id1] + cells_ene[cells_lpath[id1]]
 
     return cells_epass, cells_ipass
+
+
+def clouds_passes(cells_ene, cells_node, cells_enode, cells_lnode,
+                  cells_kid, cells_lgrad, cells_lpath):
+
+    nsize  = len(cells_node)
+    cells_epass = np.zeros(nsize)
+    cells_ipass = np.full(nsize, -1).astype(int)
+
+    nodes_kid, _ = sorted_by_energy(cells_node, cells_enode)
+    #print('nodes ', nodes_kid)
+
+    sel_passes = (cells_kid == cells_lpath[cells_lpath[cells_kid]])
+    #print('possible passes ', np.sum(sel_passes))
+
+    for i, inode in enumerate(nodes_kid):
+        for jnode in nodes_kid[ i +1 : ]:
+            sel  = np.logical_and(((cells_node == inode) & (cells_lnode == jnode)), sel_passes)
+            if (np.sum(sel) == 0):
+                sel = np.logical_and((cells_node == inode), (cells_lnode == jnode))
+            #print(' passes? ', inode, jnode, np.sum(sel))
+            if (np.sum(sel) > 0) :
+                isel = np.argmax(cells_lgrad[sel])
+                id1  = cells_kid [sel][isel]
+                #print('index 1 ', id1)
+                cells_epass[id1] = cells_ene[id1] + cells_ene[cells_lpath[id1]]
+
+    return cells_epass, cells_ipass
+
 
 
 def clouds_tracks(cnode, enodes, epasses, lpaths, kids):
@@ -591,6 +620,73 @@ def get_mcpaths(xcoors, enemc, in_cells):
     paths.append(path)
     #print(paths)
     return paths
+
+# SAVE THIS CODE
+#
+# ncells  = len(dfclouds.ene)
+# print(ncells)
+# mcinit  = np.full(ncells, -1)
+# mcpath  = np.full(ncells, -1)
+# mcpath[mcene > 0] = dfclouds.kid[mcene > 0]
+# mccells = [-1,]
+# paths = []
+# path  = []
+# prevkid = -1
+# lastkid = -1
+# for i, dd in enumerate(dds):
+#     ckid = int(xpos[i][0]) if len(xpos[i]) == 1 else -1
+#     if (ckid != prevkid): # to a different cells
+#         if (ckid not in mccells):
+#             mccells.append(ckid)
+#             if (dd > 2.):
+#                 # new init
+#                 if (len(path) > 0): paths.append(path)
+#                 path = [ckid]
+#                 mcinit[ckid] = ckid
+#                 lastkid      = ckid
+#             else:
+#                 # continue
+#                 if (len(path) == 0):
+#                     mcinit[ckid] = ckid
+#                 path.append(ckid)
+#                 if (lastkid != -1): mcpath[lastkid] = ckid
+#                 lastkid = ckid
+#         else:
+#             # new empty
+#             if (len(path) > 0): paths.append(path)
+#             path = []
+#             lastkid = -1
+#     prevkid = ckid
+# paths.append(path)
+# print(mccells)
+# for path in paths:
+#     print('path', path[0], path[-1], ', nodes: ', path)
+# npaths = len(paths)
+# #for i in range(npaths):
+# #    for j in range(i +1, npaths):
+# #        print(np.sum(np.isin(paths[j], paths[i])))
+#
+# #print(mcpath)
+# for path in paths:
+#     print('init ', path[0], np.isin(path[0], mcinit[mcinit > -1]))
+# ipaths = [path[0] for path in paths]
+# print('inits ', sorted(mcinit[mcinit > -1]), 'len ', len(mcinit[mcinit > -1]))
+# print('inits ', sorted(ipaths), 'len ', len(ipaths))
+#
+#
+# #for path in paths:
+# #    print('init ', path[-1],  mcpath[path[-1]] == path[-1]))
+# lpaths = [path[-1] for path in paths]
+# for path in paths:
+#     print('end ', path[-1], np.isin(path[-1], mcpath[mcpath == dfclouds.kid]))
+# print('ends ', sorted(mcpath[mcpath == dfclouds.kid]), 'len ', len(mcpath[mcpath == dfclouds.kid]))
+# print('ends ', sorted(lpaths), 'len ', len(lpaths))
+#
+
+#HERE
+
+
+
 
 
 #
