@@ -136,6 +136,10 @@ def dcloud_steps(dfclouds, ndim, scale = 1000., rscale = 5., xaxis = 0, ncolumns
     lpath  = dfclouds.lpath.values
     epass  = dfclouds.epass.values
 
+    track  = dfclouds.track.values
+    tnode  = dfclouds.tnode.values
+    tpass  = dfclouds.tpass.values
+
 
     sdim = '3d' if ndim == 3 else '2d'
     subplot = canvas(7, ncolumns, 10, 12)
