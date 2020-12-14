@@ -336,48 +336,101 @@ def dcloud_tracks_3dviews(dfclouds, mc = False, ncolumns = 2, type = 'ranger', v
 
     return
 
-#
-#
-# def dcloud_tracks_3dviews(dfclouds, ncolumns = 2, scale = 1000., xaxis = 0, **kargs):
-#
-#     ndim   = 3
-#     cells  = get_cells(dfclouds, ndim)
-#     enes   = dfclouds.ene.values
-#     enodes = dfclouds.enode.values
-#     #nodes  = dfclouds.node.values
-#     epath  = dfclouds.epath.values
-#     lpath  = dfclouds.lpath.values
-#     epass  = dfclouds.epass.values
-#
-#     track  = dfclouds.track.values
-#     tnode  = dfclouds.tnode.values
-#     tpass  = dfclouds.tpass.values
-#
-#     sdim   = '3d' if ndim == 3 else '2d'
-#     rscale = 5.
-#
-#     subplot = canvas(4, ncolumns, 10, 12)
-#
-#     xlabels = 2 * ['x (mm)', 'y (mm)', 'z (mm)']
-#
-#     def _view(i, ii):
-#         subplot(ii + 1, sdim)
-#         plt.title('view ' + str(i))
-#         kidtrack = np.unique(track)
-#         for ii, kid in enumerate(kidtrack):
-#             sel  = track == kid
-#             dcloud_cells(_csel(cells, sel), alpha = 0.05, xaxis = i)
-#             sel  = tnode == kid
-#             dcloud_nodes(_csel(cells, sel), scale * enodes[sel],  alpha = 0.8,
-#                                marker = 'o', xaxis = i)
-#             sel  = tpass == kid
-#             dcloud_nodes(_csel(cells, sel), rscale * scale * epass[sel], alpha = 0.9,
-#                                    marker = '^',  xaxis = i)
-#             dcloud_segments(cells, np.argwhere(sel), epath, lpath, xaxis = i)
-#             ax = plt.gca()
-#             ax.set_xlabel(xlabels[i]); ax.set_ylabel(xlabels[i+1]); ax.set_zlabel(xlabels[i+2])
-#
-#     for ii, i in enumerate([0, 1, 2]):
-#         _view(i, ii)
-#
-#     return
+
+def get_draw_clouds(coors, steps, ene, mccoors = None, mcene = None):
+
+    ndim = len(steps)
+
+    dfclouds, mcpaths = None, None
+
+    if (mccoors is None):
+        dfclouds          = clouds.clouds(coors, steps, ene)
+    else:
+        dfclouds, mcpaths = clouds.clouds_mc(coors, steps, ene, mccoors, mcene)
+
+
+    cells  = get_cells(dfclouds, ndim)        # all cells
+
+    kid    = dfclouds.kid  .values            # cell id
+    enes   = dfclouds.ene  .values            # cell energies
+
+    enode  = dfclouds.enode.values            # energy of nodes
+    egrad  = dfclouds.egrad.values            # gradient of the cell
+    nodes  = dfclouds.node .values            # nodes id of each cell
+    epath  = dfclouds.epath.values            # id of cell direction of gradient
+
+    lpath  = dfclouds.lpath.values            # id of cell with largest gradient but different node
+    epass  = dfclouds.epass.values            # energy of pass (sum of the 2 cell in the pass)
+    lgrad  = dfclouds.lgrad.values            # gradient with respect cells in a different node
+
+    track  = dfclouds.track.values            # ID of track of this cell
+    tnode  = dfclouds.tnode.values            # ID of the track of this node (if cell is a node)
+    tpass  = dfclouds.tpass.values            # ID of the track of this pass (is pass is a node)
+
+    sdim    = '3d' if ndim == 3 else '2d'
+
+    xlabels = 2 * ['x (mm)', 'y (mm)', 'z (mm)']
+    def _setlabels(xaxis = 0):
+        ax = plt.gca()
+        plt.xlabel(xlabels[xaxis]); plt.ylabel(xlabels[xaxis + 1]);
+        if (ndim == 3): ax.set_zlabel(xlabels[xaxis + 2])
+
+
+    def draw(plots, xaxis = 0, scale = 1000., rscale = 5., **kargs):
+
+        subplot = canvas(1, 1, 8, 10)
+        ax      = subplot(1, sdim)
+        plt.title(' view ' + str(xaxis))
+
+        kargs = karg('alpha', 0.5, kargs)
+
+        if (plots['MC-true']):
+            assert mccoors is not None
+            xxcoors   = _ocells(mccoors, xaxis) if xaxis != 0 else mccoors
+            ax.scatter(*xxcoors, c = scale * mcene, s = scale * mcene,
+                       marker = '.', label = 'MC-true', **kargs);
+            _setlabels()
+
+        if (plots['MC-cells']):
+            assert 'mcene' in list(dfclouds.columns)
+            xmcene = dfclouds.mcene.values
+            pltclouds.dcloud_nodes(cells, rscale * scale * xmcene,
+                                    label = 'MC-cells', marker = 'P', xaxis = xaxis, **kargs);
+
+        if (plots['MC-tracks']):
+            assert mcpaths is not None
+            xcells   = _ocells(cells, xaxis) if xaxis != 0 else cells
+            segments = [clouds.get_segment(xcells, path) for path in mcpaths]
+            for ii, segment in enumerate(segments):
+                plt.plot(*segment, c = 'blue', **kargs)
+
+        if (plots['cells']):
+            alpha = kargs['alpha']
+            kargs['alpha'] = 0.05 #karg('alpha', 0.01, kargs)
+            pltclouds.dcloud_cells(cells, xaxis = xaxis, label = 'cells', **kargs)
+            kargs['alpha'] = alpha
+
+        if (plots['gradients']):
+            dcloud_grad(cells, epath, xaxis = xaxis, **kargs)
+
+        if (plots['nodes']):
+            pltclouds.dcloud_nodes(cells, scale * enode,
+                                  marker = 'o', xaxis = xaxis, label = 'nodes', **kargs)
+
+        if (plots['links']):
+            dcloud_grad (cells, lpath, xaxis = xaxis, **kargs)
+
+
+        if (plots['passes']):
+            pltclouds.dcloud_nodes(cells, rscale * scale * epass,
+                                    marker = '^',  xaxis = xaxis, label = 'passes', **kargs)
+
+        if (plots['tracks']):
+            kidtrack = np.unique(track[track >= 0])
+            for ii, kid in enumerate(kidtrack):
+                sel  = tpass == kid
+                pltclouds.dcloud_segments(cells, np.argwhere(sel),
+                                          epath, lpath, xaxis = xaxis, **kargs)
+
+
+    return draw
