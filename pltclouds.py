@@ -389,13 +389,13 @@ def get_draw_clouds(coors, steps, ene, mccoors = None, mcene = None):
             xxcoors   = _ocells(mccoors, xaxis) if xaxis != 0 else mccoors
             ax.scatter(*xxcoors, c = scale * mcene, s = scale * mcene,
                        marker = '.', label = 'MC-true', **kargs);
-            _setlabels()
 
         if (plots['MC-cells']):
             assert 'mcene' in list(dfclouds.columns)
             xmcene = dfclouds.mcene.values
             dcloud_nodes(cells, rscale * scale * xmcene, label = 'MC-cells',
                          marker = 'P', xaxis = xaxis, **kargs);
+
 
         if (plots['MC-tracks']):
             assert mcpaths is not None
@@ -436,6 +436,8 @@ def get_draw_clouds(coors, steps, ene, mccoors = None, mcene = None):
                 dcloud_segments(cells, np.argwhere(sel), epath, lpath,
                                 xaxis = xaxis, **kargs)
 
+        _setlabels(xaxis)
+        plt.legend()
         return
 
     plots = {}
