@@ -394,8 +394,8 @@ def get_draw_clouds(coors, steps, ene, mccoors = None, mcene = None):
         if (plots['MC-cells']):
             assert 'mcene' in list(dfclouds.columns)
             xmcene = dfclouds.mcene.values
-            pltclouds.dcloud_nodes(cells, rscale * scale * xmcene,
-                                    label = 'MC-cells', marker = 'P', xaxis = xaxis, **kargs);
+            dcloud_nodes(cells, rscale * scale * xmcene, label = 'MC-cells',
+                         marker = 'P', xaxis = xaxis, **kargs);
 
         if (plots['MC-tracks']):
             assert mcpaths is not None
@@ -407,30 +407,34 @@ def get_draw_clouds(coors, steps, ene, mccoors = None, mcene = None):
         if (plots['cells']):
             alpha = kargs['alpha']
             kargs['alpha'] = 0.05 #karg('alpha', 0.01, kargs)
-            pltclouds.dcloud_cells(cells, xaxis = xaxis, label = 'cells', **kargs)
+            dcloud_cells(cells, xaxis = xaxis, label = 'cells', **kargs)
             kargs['alpha'] = alpha
 
         if (plots['gradients']):
             dcloud_grad(cells, epath, xaxis = xaxis, **kargs)
 
         if (plots['nodes']):
-            pltclouds.dcloud_nodes(cells, scale * enode,
-                                  marker = 'o', xaxis = xaxis, label = 'nodes', **kargs)
+            dcloud_nodes(cells, scale * enode, marker = 'o',
+             xaxis = xaxis, label = 'nodes', **kargs)
 
         if (plots['links']):
             dcloud_grad (cells, lpath, xaxis = xaxis, **kargs)
 
-
         if (plots['passes']):
-            pltclouds.dcloud_nodes(cells, rscale * scale * epass,
-                                    marker = '^',  xaxis = xaxis, label = 'passes', **kargs)
+            dcloud_nodes(cells, rscale * scale * epass, marker = '^',
+                         xaxis = xaxis, label = 'passes', **kargs)
+
+        if (plots['segments']):
+            sel  = epass > 0
+            dcloud_segments(cells, np.argwhere(sel), epath, lpath,
+                            xaxis = xaxis, **kargs)
 
         if (plots['tracks']):
             kidtrack = np.unique(track[track >= 0])
             for ii, kid in enumerate(kidtrack):
                 sel  = tpass == kid
-                pltclouds.dcloud_segments(cells, np.argwhere(sel),
-                                          epath, lpath, xaxis = xaxis, **kargs)
+                dcloud_segments(cells, np.argwhere(sel), epath, lpath,
+                                xaxis = xaxis, **kargs)
 
         return
 
@@ -443,6 +447,7 @@ def get_draw_clouds(coors, steps, ene, mccoors = None, mcene = None):
     plots['nodes']       = True
     plots['links']       = False
     plots['passes']      = False
+    plots['segments']    = False
     plots['tracks']      = True
 
     return draw, plots
