@@ -394,7 +394,7 @@ def get_draw_clouds(dfclouds, mccoors = None, mcene = None):
         if (ndim == 3): ax.set_zlabel(xlabels[xaxis + 2])
 
 
-    def draw(plots, xaxis = 0, scale = 1000., rscale = 2., **kargs):
+    def draw(plots, xaxis = 0, scale = 1000., rscale = 3., **kargs):
 
         subplot = canvas(1, 1, 10, 12)
         ax      = subplot(1, sdim)
