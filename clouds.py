@@ -177,7 +177,7 @@ def clouds(coors, steps, weights):
 
     clouds_check(coors, steps, weights)
 
-    bins, cells, cells_ene, \
+    bins, icells, cells, cells_ene, \
     cells_kid                   = clouds_potential(coors, steps, weights)
     ndim, nsize                 = clouds_size(cells, cells_ene)
     #print(' clouds size ', ndim, nsize)
@@ -209,6 +209,8 @@ def clouds(coors, steps, weights):
     dat = {}
     for i in range(ndim):
         dat['x'+str(i)] = cells[i]            # positions of the cells
+    for i in range(ndim):
+        dat['k'+str(i)] = icells[i]           # index of the cells
     dat['ene']          = cells_ene           # energy of the cells
     dat['kid']          = cells_kid           # local-ID of the cells
 
@@ -282,7 +284,7 @@ def clouds_potential(coors, steps, weights):
     centers      = [ut_centers(ibin) for ibin in bins]
     cells        = [centers[i][icells[i]] for i in range(ndim)]
 
-    return bins, cells, enes, kids.astype(int)
+    return bins, icells, cells, enes, kids.astype(int)
 
 
 def clouds_neighbours(bins, cells, cells_ene):
