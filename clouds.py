@@ -3,7 +3,98 @@ import pandas            as pd
 #import tables            as tb
 
 
-#import hipy.utils  as ut
+def clouds(coors, steps, weights):
+    """
+    inputs:
+        coors: tuple(array), m-dim tuple with k-size arrays with the coordinates of the hits
+        steps: tuple(float), m-dim tuple with the size in each coordinate of the cells
+        weights: array, k-size array with the energy/weight of the hits
+    returns:
+        pd: a Pandas DataFrame with a list of columns:
+    """
+
+    clouds_check(coors, steps, weights)
+
+    bins, icells, cells, cells_ene, \
+    cells_kid                   = clouds_potential(coors, steps, weights)
+    ndim, nsize                 = clouds_size(cells, cells_ene)
+    #print(' clouds size ', ndim, nsize)
+    cells_neighbours            = clouds_neighbours(bins, cells, cells_ene)
+    cells_egrad, cells_epath    = clouds_gradient (bins, cells, cells_ene,
+                                                   cells_kid)
+    cells_node, cells_enode, \
+    cells_nodesize              = clouds_nodes(cells_ene, cells_kid, cells_epath)
+
+    cells_lgrad, cells_lnode, \
+    cells_lpath                 = clouds_gradient_link(bins, cells, cells_ene,
+                                                       cells_node, cells_kid)
+
+    cells_epass, cells_ipass    = clouds_passes(cells_ene, cells_node,
+                                                cells_enode, cells_lnode,
+                                                cells_kid, cells_lgrad,
+                                                cells_lpath)
+
+    cells_track, cells_tnode, \
+    cells_tpass                 = clouds_tracks(cells_node, cells_enode,
+                                                cells_epass, cells_lpath,
+                                                cells_kid)
+
+    cells_ranger, cells_eranger = clouds_rangers(cells_ene,
+                                               cells_tnode, cells_tpass,
+                                               cells_epath, cells_lpath,
+                                               cells_kid)
+
+    dat = {}
+    for i in range(ndim):
+        dat['x'+str(i)] = cells[i]            # positions of the cells
+    for i in range(ndim):
+        dat['k'+str(i)] = icells[i]           # index of the cells
+    dat['ene']          = cells_ene           # energy of the cells
+    dat['kid']          = cells_kid           # local-ID of the cells
+
+    dat['egrad']        = cells_egrad         # energy grandient of the cell
+    dat['epath']        = cells_epath         # local-ID cell that has the largest energy gradient to this cell
+    dat['neighbours']   = cells_neighbours    # number of neighbours cells
+
+    dat['enode']        = cells_enode         # energy of the node (sum of the energies) only for node-cells
+    dat['node']         = cells_node          # local-ID of the node-cell of this cell
+    #dat['inode']        = cells_inode         # indices of the nodes, sorted by energy (decreasing)
+    dat['sizenode']     = cells_nodesize      # number of cells in the node (only for node-cells)
+
+    dat['lgrad']        = cells_lgrad         # energy gradient with cells of different nodes
+    dat['lpath']        = cells_lpath         # local-ID of the cells with the largest energy gradient and different node
+    dat['lnode']        = cells_lnode         # local-ID of the node to which this cell is a border and it is linked to
+    dat['epass']        = cells_epass         # energy of the link between two cells of different nodes
+
+    dat['track']        = cells_track         # ID of the most energetic cells in the track
+    dat['tnode']        = cells_tnode         # ID of the most energetic cell-node for nodes in the track
+    dat['tpass']        = cells_tpass         # ID of the most energetic cell-node for passes in the track
+    #dat['ipass']        = cells_ipass        # indeces of the links, sorted by energy (decreasing)
+
+    dat['ranger']       = cells_ranger        # cell-ID of the most energy cell in the range
+    dat['eranger']      = cells_eranger       # sum-energy of the cells that are associate to this cell-range
+
+    return pd.DataFrame(dat)
+
+
+def clouds_mc(coors, steps, ene, coorsmc, enemc):
+
+    # clouds
+    dfclouds = clouds(coors, steps, ene)
+
+    # mc-ene
+    in_cells = get_values_in_cells(coors, steps, ene)
+    xmcene, _, _ = in_cells(coorsmc, enemc)
+    dfclouds['mcene'] = xmcene
+
+    #mcpaths # THINK: can put paths into cells?
+    mcpaths = get_mcpaths(coorsmc, enemc, in_cells)
+
+    return dfclouds, mcpaths
+
+
+#------- INTERNAL
+
 
 #--- utilities
 
@@ -165,78 +256,78 @@ def get_values_in_cells(coors, steps, weights):
 
 
 
-def clouds(coors, steps, weights):
-    """
-    inputs:
-        coors: tuple(array), m-dim tuple with k-size arrays with the coordinates of the hits
-        steps: tuple(float), m-dim tuple with the size in each coordinate of the cells
-        weights: array, k-size array with the energy/weight of the hits
-    returns:
-        pd: a Pandas DataFrame with a list of columns:
-    """
+# def clouds(coors, steps, weights):
+#     """
+#     inputs:
+#         coors: tuple(array), m-dim tuple with k-size arrays with the coordinates of the hits
+#         steps: tuple(float), m-dim tuple with the size in each coordinate of the cells
+#         weights: array, k-size array with the energy/weight of the hits
+#     returns:
+#         pd: a Pandas DataFrame with a list of columns:
+#     """
 
-    clouds_check(coors, steps, weights)
+#     clouds_check(coors, steps, weights)
 
-    bins, icells, cells, cells_ene, \
-    cells_kid                   = clouds_potential(coors, steps, weights)
-    ndim, nsize                 = clouds_size(cells, cells_ene)
-    #print(' clouds size ', ndim, nsize)
-    cells_neighbours            = clouds_neighbours(bins, cells, cells_ene)
-    cells_egrad, cells_epath    = clouds_gradient (bins, cells, cells_ene,
-                                                   cells_kid)
-    cells_node, cells_enode, \
-    cells_nodesize              = clouds_nodes(cells_ene, cells_kid, cells_epath)
+#     bins, icells, cells, cells_ene, \
+#     cells_kid                   = clouds_potential(coors, steps, weights)
+#     ndim, nsize                 = clouds_size(cells, cells_ene)
+#     #print(' clouds size ', ndim, nsize)
+#     cells_neighbours            = clouds_neighbours(bins, cells, cells_ene)
+#     cells_egrad, cells_epath    = clouds_gradient (bins, cells, cells_ene,
+#                                                    cells_kid)
+#     cells_node, cells_enode, \
+#     cells_nodesize              = clouds_nodes(cells_ene, cells_kid, cells_epath)
 
-    cells_lgrad, cells_lnode, \
-    cells_lpath                 = clouds_gradient_link(bins, cells, cells_ene,
-                                                       cells_node, cells_kid)
+#     cells_lgrad, cells_lnode, \
+#     cells_lpath                 = clouds_gradient_link(bins, cells, cells_ene,
+#                                                        cells_node, cells_kid)
 
-    cells_epass, cells_ipass    = clouds_passes(cells_ene, cells_node,
-                                                cells_enode, cells_lnode,
-                                                cells_kid, cells_lgrad,
-                                                cells_lpath)
+#     cells_epass, cells_ipass    = clouds_passes(cells_ene, cells_node,
+#                                                 cells_enode, cells_lnode,
+#                                                 cells_kid, cells_lgrad,
+#                                                 cells_lpath)
 
-    cells_track, cells_tnode, \
-    cells_tpass                 = clouds_tracks(cells_node, cells_enode,
-                                                cells_epass, cells_lpath,
-                                                cells_kid)
+#     cells_track, cells_tnode, \
+#     cells_tpass                 = clouds_tracks(cells_node, cells_enode,
+#                                                 cells_epass, cells_lpath,
+#                                                 cells_kid)
 
-    cells_ranger, cells_eranger = clouds_rangers(cells_ene,
-                                               cells_tnode, cells_tpass,
-                                               cells_epath, cells_lpath,
-                                               cells_kid)
+#     cells_ranger, cells_eranger = clouds_rangers(cells_ene,
+#                                                cells_tnode, cells_tpass,
+#                                                cells_epath, cells_lpath,
+#                                                cells_kid)
 
-    dat = {}
-    for i in range(ndim):
-        dat['x'+str(i)] = cells[i]            # positions of the cells
-    for i in range(ndim):
-        dat['k'+str(i)] = icells[i]           # index of the cells
-    dat['ene']          = cells_ene           # energy of the cells
-    dat['kid']          = cells_kid           # local-ID of the cells
+#     dat = {}
+#     for i in range(ndim):
+#         dat['x'+str(i)] = cells[i]            # positions of the cells
+#     for i in range(ndim):
+#         dat['k'+str(i)] = icells[i]           # index of the cells
+#     dat['ene']          = cells_ene           # energy of the cells
+#     dat['kid']          = cells_kid           # local-ID of the cells
 
-    dat['egrad']        = cells_egrad         # energy grandient of the cell
-    dat['epath']        = cells_epath         # local-ID cell that has the largest energy gradient to this cell
-    dat['neighbours']   = cells_neighbours    # number of neighbours cells
+#     dat['egrad']        = cells_egrad         # energy grandient of the cell
+#     dat['epath']        = cells_epath         # local-ID cell that has the largest energy gradient to this cell
+#     dat['neighbours']   = cells_neighbours    # number of neighbours cells
 
-    dat['enode']        = cells_enode         # energy of the node (sum of the energies) only for node-cells
-    dat['node']         = cells_node          # local-ID of the node-cell of this cell
-    #dat['inode']        = cells_inode         # indices of the nodes, sorted by energy (decreasing)
-    dat['sizenode']     = cells_nodesize      # number of cells in the node (only for node-cells)
+#     dat['enode']        = cells_enode         # energy of the node (sum of the energies) only for node-cells
+#     dat['node']         = cells_node          # local-ID of the node-cell of this cell
+#     #dat['inode']        = cells_inode         # indices of the nodes, sorted by energy (decreasing)
+#     dat['sizenode']     = cells_nodesize      # number of cells in the node (only for node-cells)
 
-    dat['lgrad']        = cells_lgrad         # energy gradient with cells of different nodes
-    dat['lpath']        = cells_lpath         # local-ID of the cells with the largest energy gradient and different node
-    dat['lnode']        = cells_lnode         # local-ID of the node to which this cell is a border and it is linked to
-    dat['epass']        = cells_epass         # energy of the link between two cells of different nodes
+#     dat['lgrad']        = cells_lgrad         # energy gradient with cells of different nodes
+#     dat['lpath']        = cells_lpath         # local-ID of the cells with the largest energy gradient and different node
+#     dat['lnode']        = cells_lnode         # local-ID of the node to which this cell is a border and it is linked to
+#     dat['epass']        = cells_epass         # energy of the link between two cells of different nodes
 
-    dat['track']        = cells_track         # ID of the most energetic cells in the track
-    dat['tnode']        = cells_tnode         # ID of the most energetic cell-node for nodes in the track
-    dat['tpass']        = cells_tpass         # ID of the most energetic cell-node for passes in the track
-    #dat['ipass']        = cells_ipass        # indeces of the links, sorted by energy (decreasing)
+#     dat['track']        = cells_track         # ID of the most energetic cells in the track
+#     dat['tnode']        = cells_tnode         # ID of the most energetic cell-node for nodes in the track
+#     dat['tpass']        = cells_tpass         # ID of the most energetic cell-node for passes in the track
+#     #dat['ipass']        = cells_ipass        # indeces of the links, sorted by energy (decreasing)
 
-    dat['ranger']       = cells_ranger        # cell-ID of the most energy cell in the range
-    dat['eranger']      = cells_eranger       # sum-energy of the cells that are associate to this cell-range
+#     dat['ranger']       = cells_ranger        # cell-ID of the most energy cell in the range
+#     dat['eranger']      = cells_eranger       # sum-energy of the cells that are associate to this cell-range
 
-    return pd.DataFrame(dat)
+#     return pd.DataFrame(dat)
 
 
 #
@@ -573,20 +664,20 @@ def clouds_rangers(enes, tnode, tpass, epath, lpath, ckids):
 #----------------------
 
 
-def clouds_mc(coors, steps, ene, coorsmc, enemc):
+# def clouds_mc(coors, steps, ene, coorsmc, enemc):
 
-    # clouds
-    dfclouds = clouds(coors, steps, ene)
+#     # clouds
+#     dfclouds = clouds(coors, steps, ene)
 
-    # mc-ene
-    in_cells = get_values_in_cells(coors, steps, ene)
-    xmcene, _, _ = in_cells(coorsmc, enemc)
-    dfclouds['mcene'] = xmcene
+#     # mc-ene
+#     in_cells = get_values_in_cells(coors, steps, ene)
+#     xmcene, _, _ = in_cells(coorsmc, enemc)
+#     dfclouds['mcene'] = xmcene
 
-    #mcpaths # THINK: can put paths into cells?
-    mcpaths = get_mcpaths(coorsmc, enemc, in_cells)
+#     #mcpaths # THINK: can put paths into cells?
+#     mcpaths = get_mcpaths(coorsmc, enemc, in_cells)
 
-    return dfclouds, mcpaths
+#     return dfclouds, mcpaths
 
 
 def get_mcpaths(xcoors, enemc, in_cells):
