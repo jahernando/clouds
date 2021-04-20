@@ -39,7 +39,7 @@ def clouds(coors, steps, weights):
                                                 cells_epass, cells_lpath,
                                                 cells_kid)
 
-    cells_ranger, cells_eranger = clouds_rangers(cells_ene,
+    cells_crest, cells_ecrest = clouds_crests(cells_ene,
                                                cells_tnode, cells_tpass,
                                                cells_epath, cells_lpath,
                                                cells_kid)
@@ -71,8 +71,8 @@ def clouds(coors, steps, weights):
     dat['tpass']        = cells_tpass         # ID of the most energetic cell-node for passes in the track
     #dat['ipass']        = cells_ipass        # indeces of the links, sorted by energy (decreasing)
 
-    dat['ranger']       = cells_ranger        # cell-ID of the most energy cell in the range
-    dat['eranger']      = cells_eranger       # sum-energy of the cells that are associate to this cell-range
+    dat['crest']       = cells_crest       # cell-ID of the most energy cell in the crest
+    dat['ecrest']      = cells_crest       # sum-energy of the cells that are associate to this cell-crest
 
     return pd.DataFrame(dat)
 
@@ -183,6 +183,7 @@ def get_moves_updown(ndim):
         vs.append(-u1(i))
     vs.pop(0)
     return vs
+
 
 def get_moves(ndim):
     """ returns movelments of combination of 1-unit in each direction
@@ -512,7 +513,7 @@ def clouds_gradient_link(bins, cells, cells_enes, cells_nodes, cells_kids):
 
 
 def clouds_passes_save(cells_ene, cells_node, cells_enode, cells_lnode,
-                  cells_kid, cells_lgrad, cells_lpath):
+                       cells_kid, cells_lgrad, cells_lpath):
 
     nsize  = len(cells_node)
     cells_epass = np.zeros(nsize)
@@ -624,7 +625,7 @@ def clouds_tracks(cnode, enodes, epasses, lpaths, kids):
     return tracks, tnodes, tpasses
 
 
-def clouds_rangers(enes, tnode, tpass, epath, lpath, ckids):
+def clouds_crests(enes, tnode, tpass, epath, lpath, ckids):
 
     nsize  = len(tpass)
     trange = np.full(nsize, -1).astype(int)
