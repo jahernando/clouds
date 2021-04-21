@@ -923,6 +923,7 @@ def nodes_idistance(passes):
     knodes  = dpasses.keys()
 
     end_kids = np.array([k for k in knodes if (len(dpasses[k]) == 1)])
+    #print(end_kids)
 
     udist = {}
     i = 1
@@ -932,7 +933,7 @@ def nodes_idistance(passes):
     while ok > 0:
         i = i +1
         upasses = [pair for pair in passes if np.sum(np.isin(pair, end_kids)) > 0]
-        uus = np.concatenate(upasses)
+        uus = np.unique(np.concatenate(upasses))
         end_kids = uus[~np.isin(uus, end_kids)]
         for kid in end_kids:
             udist[kid] = i
