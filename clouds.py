@@ -781,8 +781,6 @@ def get_mcpaths(xcoors, enemc, in_cells):
 
 
 
-
-
 #
 #   Post-cloud utils
 #-------------------------------
@@ -802,6 +800,7 @@ def sorted_by_energy(kids, enes):
     nodes.reverse()
     xenes, xkids = [node[0] for node in nodes], [node[1] for node in nodes]
     return xkids, xenes
+
 
 
 def get_path(kid, next_kid):
@@ -828,7 +827,7 @@ def get_pass_path(kid, epath, lpath):
     returns:
         path  : array(int), array with the IDs of the cells in the path of this pass
     """
-    path1 = get_path(kid             , epath)
+    path1 = get_path(kid       , epath)
     path2 = get_path(lpath[kid], epath)
     path1.reverse()
     path = path1 + path2
@@ -844,3 +843,158 @@ def get_segment(cells, kids):
     ndim = len(cells)
     segment = [np.array([float(cells[i][kid]) for kid in kids]) for i in range(ndim)]
     return segment
+
+
+#--- Function with passes
+
+
+def get_passes(epass, node, lnode):
+    """
+    
+    return the list of pair (node0, node1) with the passes between nodes
+
+    Parameters
+    ----------
+    epass : np.array, potential of the pass for this cell
+    node  : np.array(int), k-index of the node for this cell
+    lnode : np.array(int), k-index of the lined node for this cell
+
+    Returns
+    -------
+    passes : list( (int, int) ), list of passes, pairs of (node0, node1)
+    """
+    
+    ksel   = epass > 0.
+    passes = list(zip(node[ksel], lnode[ksel]))
+    
+    #passes = list(zip(node[ksel], lnode[ksel]))
+    #unodes = list(node[ksel]) + list(lnode[ksel])
+    #knodes = np.unique(unodes)
+    
+    #dpasses = {}
+    #for knode in knodes:
+    #    dpasses[knode] = [ipass for ipass in passes if np.isin(knode, ipass)]
+    
+    return passes
+
+def get_passes_dict(passes):
+    """
+    
+    from the list of passes (node0, node1) returns a dictionary that for each node key
+    returns the passes of that node
+
+    Parameters
+    ----------
+    passes : list( (int, int)), list of passes (node0, node1)
+        DESCRIPTION.
+
+    Returns
+    -------
+    dpasses : dict(int) = list( (node0, node1)), dictionary, for each node-id returns the list of passes
+
+    """
+    
+    knodes = np.unique(np.concatenate(list(passes)))
+    dpasses = {}
+    for knode in knodes:
+        dpasses[knode] = [ipass for ipass in passes if np.isin(knode, ipass)]
+        
+    return dpasses
+    
+
+def nodes_idistance(passes):
+    """
+    
+    From the list of passes compute the step distance of each node to an extreme of the track
+    
+    Parameters
+    ----------
+    passes : list( (int, int)), list of passes, each pass is a tuple (node0, node1)
+
+    Returns
+    -------
+    udist : dic(int) = int, returns the number of node steps of the current node to an extreme
+
+    """
+    
+    
+    passes  = list(passes)
+    dpasses = get_passes_dict(passes)
+    knodes  = dpasses.keys()
+
+    end_kids = np.array([k for k in knodes if (len(dpasses[k]) == 1)])
+
+    udist = {}
+    i = 1
+    for kid in end_kids:
+        udist[kid] = 1
+    ok = True
+    while ok > 0:
+        i = i +1
+        upasses = [pair for pair in passes if np.sum(np.isin(pair, end_kids)) > 0]
+        uus = np.concatenate(upasses)
+        end_kids = uus[~np.isin(uus, end_kids)]
+        for kid in end_kids:
+            udist[kid] = i
+        #print(i, end_kids)
+        for upass in upasses:
+            passes.pop(passes.index(upass))
+        ok = (len(passes) > 0) and (len(end_kids) >0)
+        
+    return udist
+
+
+def get_function_branches(passes):
+    """
+    
+    returns a function, branches, that branches(int) where int is the id of the node
+    returns the list of branches starting from this node, each branch is a list of consecutive nodes
+
+    Parameters
+    ----------
+    passes : tuple( (int, int)), list of passes, each pass is (node0, node1)
+
+    Returns
+    -------
+    branches; callable, branches(int) return the list of branches starting in that node
+
+    """
+    
+    dpasses = get_passes_dict(passes)
+    
+    def grow_branch(path):
+        ik = path[-1]
+        if (ik not in dpasses.keys()):
+            return []
+        kpasses = dpasses[ik]
+        paths   = []
+        for i, ipass in enumerate(kpasses):
+            ipass = np.array(ipass, int)
+            ik0, ik1 = ipass
+            ksel = np.isin(ipass, path)
+            #print(ipass, path, ksel)
+            ipath = list(path)
+            if (np.sum(ksel) == 2): continue
+            ikn  = ipass[~ksel][0] 
+            ipath = list(path)
+            ipath.append(ikn)
+            paths.append(ipath)        
+        return paths
+
+    def get_branches(kid):    
+        branches = []
+        paths = [[kid],]
+        while len(paths) > 0:
+            npaths = [] 
+            for path in paths:
+                nipaths = grow_branch(path)
+                if (len(nipaths)  == 0): 
+                    branches.append(list(path))
+                    #print('branch ', path)
+                else:
+                    npaths += nipaths
+                    #print('paths ', nipaths)
+                paths = npaths
+        return branches
+    
+    return get_branches
