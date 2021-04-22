@@ -1059,9 +1059,9 @@ def get_function_branches(passes):
 
 def sorted_tracks(evt, emin = 0.02):
     
-    tracks_ids = np.unique(evt.track.values)
-    enes       = np.array([np.sum(evt.ene[evt.track == ik]) for ik in tracks_ids], float)
-    tracks_ids, enes = clouds.sorted_by_energy(tracks_ids, enes)
+    tracks_ids       = np.unique(evt.track.values)
+    enes             = np.array([np.sum(evt.ene[evt.track == ik]) for ik in tracks_ids], float)
+    tracks_ids, enes = sorted_by_energy(tracks_ids, enes)
     
     tracks_ids = [id for id, ene in zip(tracks_ids, enes) if ene >= emin]
 
