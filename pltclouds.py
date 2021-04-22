@@ -420,7 +420,7 @@ def get_draw_clouds(dfclouds, mccoors = None, mcene = None):
 
     def draw(plots, xaxis = 0, scale = 1000., rscale = 3., **kargs):
 
-        subplot = canvas(1, 1, 10, 12)
+        subplot = canvas(1, 1, 6, 8)
         ax      = subplot(1, sdim)
         plt.title(' view ' + str(xaxis))
 
