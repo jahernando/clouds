@@ -872,8 +872,8 @@ def trim(evt : pd.DataFrame,
     node  = evt.node .values
     lnode = evt.lnode.values
     
-    passes  = clouds.get_passes(tpass, node, lnode)
-    dpasses = clouds.get_passes_dict(passes)
+    passes  = get_passes(tpass, node, lnode)
+    dpasses = get_passes_dict(passes)
     
     knodes = [kid for kid in dpasses.keys() if len(dpasses[kid]) == 1]
     enes   = [float(enode[kids == kid]) for kid in knodes]
