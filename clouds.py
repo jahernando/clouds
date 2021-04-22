@@ -847,6 +847,58 @@ def get_segment(cells, kids):
 
 #--- Function with passes
 
+def trim(evt : pd.DataFrame, 
+         emin: float = 0.04):
+    """
+    
+    trim the extreme nodes with low energy
+
+    Parameters
+    ----------
+    evt  : pd.DataFrame, cloulds dF
+    emin : float, optional. Minimum value of the extreme node energy
+            The default is 0.04.
+
+    Returns
+    -------
+    evt : pd.DataFrame, clouds DF with the trimmed off extreme weak nodes
+    
+    TODO: revisit!
+    """
+    
+    kids  = evt.kid  .values
+    enode = evt.enode.values
+    tpass = evt.tpass.values
+    node  = evt.node .values
+    lnode = evt.lnode.values
+    
+    passes  = clouds.get_passes(tpass, node, lnode)
+    dpasses = clouds.get_passes_dict(passes)
+    
+    knodes = [kid for kid in dpasses.keys() if len(dpasses[kid]) == 1]
+    enes   = [float(enode[kids == kid]) for kid in knodes]
+    #print(knodes)
+    #print(enes)
+    
+
+    knodes = [kid for kid, ene in zip(knodes, enes) if ene < emin]
+    #print('removing ', knodes)
+    
+    for kid in knodes:
+        sel = (evt.node == kid).values
+        #print(np.sum(sel))
+        evt['tpass'][sel] = -1
+        evt['epass'][sel] = -1
+        evt['track'][sel] = -1
+        
+        sel = (evt.lnode == kid).values
+        #print(np.sum(sel))
+        evt['tpass'][sel] = -1
+        evt['epass'][sel] = -1
+        evt['lnode'][sel] = -1
+        
+    return evt
+
 
 def get_passes(epass, node, lnode):
     """
