@@ -29,7 +29,7 @@ def clouds(coors, steps, weights):
     cells_lpath                 = clouds_gradient_link(bins, cells, cells_ene,
                                                        cells_node, cells_kid)
 
-    cells_epass, cells_ipass    = clouds_passes(cells_ene, cells_node,
+    cells_epass                 = clouds_passes(cells_ene, cells_node,
                                                 cells_enode, cells_lnode,
                                                 cells_kid, cells_lgrad,
                                                 cells_lpath)
