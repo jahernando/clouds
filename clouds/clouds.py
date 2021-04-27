@@ -137,7 +137,7 @@ def to_coors(vs):
     """ convert a list of m-size of vector of n-dim into n-dim list of coordinates eatchof m-dize (x1, x2,x)
     """
     ndim = len(vs[0])
-    xs = [[vi[i] for vi in vs] for i in range(ndim)]
+    xs = [np.array([vi[i] for vi in vs]) for i in range(ndim)]
     return xs
 
 
@@ -421,7 +421,6 @@ def clouds_gradient(bins, cells, cells_enes, cells_kids):
     potential, _ = np.histogramdd(cells, bins, weights = cells_enes)
     kids, _      = np.histogramdd(cells, bins, weights = cells_kids)
 
-    shape        = potential.shape
     sel_cells    = potential > 0
 
     nn_potential = np.copy(potential)
@@ -448,6 +447,34 @@ def clouds_gradient(bins, cells, cells_enes, cells_kids):
     return vgrad, vkids
 
 
+def clouds_neighbours_grad(bins, cells, cells_kids, cells_epath):
+    """
+
+    """
+    
+    ndim, nsize  = clouds_size(cells, cells_kids)
+    steps        = [ibin[1] - ibin[0] for ibin in bins]
+
+    counts, _    = np.histogramdd(cells, bins, weights = 1 + cells_kids)
+    nncounts     = np.full(counts.shape, 0, dtype = int) 
+    sel          = counts > 0
+    nncounts[sel]  = 1 
+    
+    counts, _    = np.histogramdd(cells, bins, weights = cells_kids)
+    kids_center  = counts.astype(int)
+    kids_center[~sel] = -1
+   
+    moves = get_moves(ndim)
+    for move in moves:
+        coors_next    = [cells[i] + steps[i] * move[i] for i in range(ndim)]
+        kids_next, _  = np.histogramdd(coors_next, bins, weights = cells_epath)
+        isel          = (kids_next == kids_center)
+        nncounts[sel & isel] += 1
+
+    nbours = nncounts[sel].astype(int)
+    return nbours
+
+
 def clouds_nodes(cells_ene, cells_kid, cells_epath):
 
     nsize = len(cells_ene)
@@ -472,7 +499,7 @@ def clouds_nodes(cells_ene, cells_kid, cells_epath):
 
 def clouds_gradient_link(bins, cells, cells_enes, cells_nodes, cells_kids):
 
-    ndim, nsize  = len(cells), len(cells[0])
+    ndim         = len(cells)
 
     steps        = [ibin[1] - ibin[0] for ibin in bins]
 
@@ -480,7 +507,6 @@ def clouds_gradient_link(bins, cells, cells_enes, cells_nodes, cells_kids):
     potential, _ = np.histogramdd(cells, bins, weights = cells_enes)
     kids, _      = np.histogramdd(cells, bins, weights = cells_kids)
 
-    shape        = potential.shape
     sel_cells    = potential > 0
 
     nn_potential = np.copy(potential)
@@ -543,7 +569,7 @@ def clouds_passes(cells_ene, cells_node, cells_enode, cells_lnode,
 
     nsize  = len(cells_node)
     cells_epass = np.zeros(nsize)
-    cells_ipass = np.full(nsize, -1).astype(int)
+    #cells_ipass = np.full(nsize, -1).astype(int)
 
     nodes_kid, _ = sorted_by_energy(cells_node, cells_enode)
     #print('nodes ', nodes_kid)
@@ -563,7 +589,7 @@ def clouds_passes(cells_ene, cells_node, cells_enode, cells_lnode,
                 #print('index 1 ', id1)
                 cells_epass[id1] = cells_ene[id1] + cells_ene[cells_lpath[id1]]
 
-    return cells_epass, cells_ipass
+    return cells_epass #, cells_ipass
 
 
 

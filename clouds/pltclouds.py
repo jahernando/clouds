@@ -1,9 +1,9 @@
 import numpy             as np
-import pandas            as pd
+#import pandas            as pd
 
-import matplotlib.pyplot as plt
+import matplotlib.pyplot   as plt
 
-import clouds        as clouds
+import clouds.clouds        as clouds
 
 
 #---- utils
@@ -142,7 +142,7 @@ def dcloud_steps(dfclouds, ndim, scale = 1000., rscale = 5., xaxis = 0, ncolumns
 
 
     sdim = '3d' if ndim == 3 else '2d'
-    subplot = canvas(7, ncolumns, 10, 12)
+    subplot = canvas(7, ncolumns, 6, 8)
 
     subplot(1, sdim) # cloud
     dcloud_cells(cells, scale * enes, alpha = 0.3, xaxis = xaxis);
