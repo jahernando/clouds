@@ -10,6 +10,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
 import clouds.clouds        as clouds
+import clouds.graphs        as graphs
 
 
 def cells_select(cells, sel):
@@ -79,6 +80,8 @@ def draw_histd(cells, bins, values, **kargs):
     facecolor = mapper.to_rgba(scale)
     #ax.voxels(x, y, z, filled, alpha=0.5)
 
+    #facecolor = 'blue'
+
     plt.gca(projection = '3d')
     plt.gca().voxels(xx, yy, zz, filled, facecolor = facecolor, **kargs);
     return
@@ -95,7 +98,7 @@ options = {'cloud'   : {'alpha'  : 0.2},
         }
 
 
-def draw_cloud(cells, bins, df, name = 'e'):
+def draw_cloud(cells, bins, df, name = 'e', plot = True):
     
     
     evalue    = df[name+'value']   .values
@@ -191,25 +194,28 @@ def draw_cloud(cells, bins, df, name = 'e'):
             
         return
             
-    draw()
+    if plot: draw()
     return draw
 
 
-def draw_graph(cells, enes, epath, isnode, ispass,
-               nlinks, links = None, size = 200, line_size = 10.):
+def draw_graph(cells, enes, epath, nlinks,
+               links  = None, node_size = 100, link_size = 2.):
     
     ndim = len(cells)
+    size = len(cells[0])
     ax = plt.gca(projection = '3d') if ndim == 3 else  plt.gca()
     
     escale = _scale(enes)
 
+    isnode = epath == np.arange(size)
     ax.scatter(*cells_select(cells, isnode), marker = 'o',
-               c = escale[isnode], s = size * escale[isnode], alpha = 0.8)    
+               c = escale[isnode], s = node_size * escale[isnode], alpha = 0.8)    
     
-    ax.scatter(*cells_select(cells, ispass), marker = '|',
-               c = escale[ispass], s = size * escale[ispass], alpha = 0.8)
+    #ispass = np.unique(nlinks[nlinks >= 0]) if links is None else np.unique(links)
+    #ax.scatter(*cells_select(cells, ispass), marker = '|',
+    #           c = escale[ispass], s = size * escale[ispass], alpha = 0.8)
     
-    links    = clouds._graph_links(nlinks) if links is None else links
+    links    = graphs._graph_links(nlinks) if links is None else links
     print(links)
     #lenes    = [max(enes[]])
     paths    = [clouds.get_path_from_link(*ilink, epath) for ilink in links]
@@ -220,10 +226,33 @@ def draw_graph(cells, enes, epath, isnode, ispass,
         iene   = (escale[i0] + escale[i1])/2.
         icolor = plt.cm.rainbow(iene)
         icolor = 'blue'
-        plt.plot(*segment, lw = line_size * iene, c = icolor, alpha = 0.6)
+        plt.plot(*segment, lw = link_size * iene, c = icolor, alpha = 0.6)
         
     #plt.colorbar(p, ax = ax);
     return
+
+
+def draw_voxels(bins, mask, cells, value = None, **kargs):
+    
+        
+    xx, yy, zz = np.meshgrid(*bins)
+    umask      = np.copy(mask)
+    filled     = np.swapaxes(umask, 0, 1).astype(bool)
+
+    def _facecolor(scale):
+        norm   = colors  .Normalize(vmin=min(scale), vmax=max(scale), clip=True)
+        mapper = colormap.ScalarMappable(norm=norm, cmap=colormap.coolwarm)
+        fc     = mapper.to_rgba(scale)
+        return fc
+    #ax.voxels(x, y, z, filled, alpha=0.5)
+
+    facecolor = 'blue' if value is None else _facecolor(value)
+
+    plt.gca(projection = '3d')
+    plt.gca().voxels(xx, yy, zz, filled, facecolor = facecolor, **kargs);
+    return
+    
+    
 
 #
 #  OTher plotting

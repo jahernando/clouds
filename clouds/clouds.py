@@ -1,8 +1,9 @@
 import numpy             as np
 import pandas            as pd
 
-import scipy.sparse.csgraph as scgraph
+#import scipy.sparse.csgraph as scgraph
 
+import collections
 import functools
 import operator
 
@@ -16,15 +17,38 @@ import clouds.ridges     as ridges
 #  Main steps
 #
 
-def clouds(coors, steps, weights, threshold = 0.):
+def clouds(coors, bins, weights, 
+           threshold = 0.):
+    """
+
+    Parameters
+    ----------
+    coors     : tuple(np.array) n-dim tuple of np.array with the coordinates
+    bins      : tuple(int) or tuple(np.array), either a m-dim tuple with the bins sizes or a list of arrays with the bins
+    weights   : np.array of weights of each coordinate
+    threshold : TYPE, optional
+
+    Returns
+    -------
+    bins : TYPE
+        DESCRIPTION.
+    mask : TYPE
+        DESCRIPTION.
+    cells : TYPE
+        DESCRIPTION.
+    df : TYPE
+        DESCRIPTION.
+
+    """
     
-    _check(coors, steps, weights)
-    
+    _check(coors, bins, weights)
     
     bins, mask, icells, cells, enes = \
-        frame(coors, steps, weights)
+        frame(coors, bins, weights)
     
     enes  = ut_scale(enes)
+    
+    nbours = neighbours(bins, mask, cells, enes)
     
     vgrad = vgradient(bins, mask, cells, enes)
     
@@ -38,14 +62,15 @@ def clouds(coors, steps, weights, threshold = 0.):
     for i, cell in enumerate(cells):
         data['x'+str(i)] = cell
     data['energy']     = enes
-    data['gradient']  = vgrad
-    data['laplacian'] = plas
-    data['iscore']  = condition
+    data['neighbours'] = nbours
+    data['vgrad']      = vgrad
+    data['laplacian']  = plas
+    data['iscore']     = condition
     
     size          = len(enes)
     truecondition = np.full(size, True, bool)
     
-    egrad, epath, elgrad, elink, enode, eisnode, eisborder, eispass, eisridge = \
+    egrad, epath, elgrad, elink, enode, eisnode, eisborder, eidborder, eispass, eisridge = \
         _clouds(bins, mask, cells, enes, truecondition)
         
     edata = {'evalue'    : enes,
@@ -56,12 +81,13 @@ def clouds(coors, steps, weights, threshold = 0.):
              'enode'     : enode,
              'eisnode'   : eisnode,
              'eisborder' : eisborder,
+             'eidborder' : eidborder,
              'eispass'   : eispass,
              'eisridge'  : eisridge
              }  
     data.update(edata)
     
-    pgrad, ppath, plgrad, plink, pnode, pisnode, pisborder, pispass, pisridge = \
+    pgrad, ppath, plgrad, plink, pnode, pisnode, pisborder, pidborder, pispass, pisridge = \
         _clouds(bins, mask, cells, vv, truecondition)
         
     pdata = {'pvalue'    : vv,
@@ -72,12 +98,15 @@ def clouds(coors, steps, weights, threshold = 0.):
              'pnode'     : pnode,
              'pisnode'   : pisnode,
              'pisborder' : pisborder,
+             'pidborder' : pidborder,
              'pispass'   : pispass,
              'pisridge'  : pisridge
              }    
     data.update(pdata)
 
     df = pd.DataFrame(data)
+        
+    
     return bins, mask, cells, df
     
 
@@ -87,17 +116,17 @@ def _clouds(bins, mask, cells, weights, condition):
     isnode       = find_nodes(egrad)
     enode        = set_node(epath)
     
-    isborder     = find_borders(bins, mask, cells, enode) 
-    lgrad, lpath = gradient_between_nodes(bins, mask, cells, weights, enode)
-    ispass       = find_passes(enode, lpath, lgrad, condition)
+    isborder, idborder = find_borders(bins, mask, cells, enode) 
+    lgrad, lpath       = gradient_between_nodes(bins, mask, cells, weights, enode)
+    ispass             = find_passes(enode, lpath, lgrad, condition)
     
     isridge      = find_new_ridge(ispass, epath, lpath)
     
-    return egrad, epath, lgrad, lpath, enode, isnode, isborder, ispass, isridge
+    return egrad, epath, lgrad, lpath, enode, isnode, isborder, idborder, ispass, isridge
     
     
 
-def _check(coors, steps, weights):
+def _check(coors, bins, weights):
 
     ndim         = len(coors)
     size         = len(coors[0])
@@ -105,22 +134,27 @@ def _check(coors, steps, weights):
     assert np.sum([len(coor) for coor in coors]) == ndim * size, \
         'not same dimension of coors'
     
-    assert len(steps) == ndim, \
+    assert len(bins) == ndim, \
         'steps dimension must be equal to dimension of coors'
     
     return True
     
 
-def frame(coors, steps, weights):
+def frame(coors, bins, weights):
     
-    ndim         = len(coors)
-    
-    bins      = [arstep(x, step, True) for x, step in zip(coors, steps)]
-    counts, _ = np.histogramdd(coors, bins, weights = weights)
+    ndim      = len(coors)
+        
+    # create the bins if bins are the step-size
+    isbins    = isinstance(bins[0], np.ndarray) or isinstance(bins[0], collections.Sequence)
+    #print('is bins?', isbins)
+    bins      = bins if isbins else \
+        [arstep(x, step, True) for x, step in zip(coors, bins)] 
+
+    counts, _ = np.histogramdd(coors, bins = bins, weights = weights)
 
     mask      = counts > 0
     icells    = to_coors(np.argwhere(mask))
-    enes      = counts[icells]
+    enes      = counts[mask]
     #nsize     = len(enes)
     #kids      = np.arange(nsize).astype(int)
 
@@ -136,6 +170,25 @@ def cells_value(bins, mask, cells, weights):
     potential, _ = np.histogramdd(cells, bins = bins, weights = weights)
     return potential[mask]
    
+    
+def neighbours(bins, mask, cells, weights):
+
+     steps        = [ibin[1] - ibin[0] for ibin in bins]
+     ndim, _      = len(cells), len(cells[0])
+
+     counts, _       = np.histogramdd(cells, bins, weights = weights)
+
+     counts[mask]   = 0
+
+     for move in moves(ndim):
+         coors_next      = [cells[i] + steps[i] * move[i] for i in range(ndim)]
+         counts_next, _  = np.histogramdd(coors_next, bins, weights = weights)
+         sel             = counts_next > 0
+         counts[sel & mask] += 1
+
+     nbours = counts[mask].astype(int)
+     return nbours
+
 
 def vgradient(bins, mask, cells, weights):
 
@@ -224,6 +277,47 @@ def set_node(epath):
     return node
 
 
+# def find_borders(bins, mask, cells, node, condition = None):
+
+#     ndim   = len(cells)
+#     steps  = [ibin[1] - ibin[0] for ibin in bins]
+
+#     size      = len(node)           
+#     condition = np.full(size, True, dtype = bool) \
+#         if condition is None else condition
+                
+#     node_             = np.copy(node)
+#     node_[~condition] = -1
+
+#     nodes, _     = np.histogramdd(cells, bins, weights = node_)
+#     cond, _      = np.histogramdd(cells, bins, weights = condition)
+#     sel_cond     = np.logical_and(mask, cond > 0)
+#     nn_border    = np.full(nodes.shape, False, dtype = bool)
+#     nn_iborder   = np.copy(nodes)
+
+#     for move in moves(ndim):
+#         coors_next     = [cells[i] + steps[i] * move[i] for i in range(ndim)]
+#         nodes_next, _  = np.histogramdd(coors_next, bins, weights = node_)
+
+#         sel_nodes      = np.logical_and((nodes_next != nodes), (nodes_next != -1))
+
+#         sel            = np.logical_and(sel_nodes, sel_cond)
+
+#         nn_border[sel] = np.logical_or(nn_border[sel], nodes_next[sel])
+#         #nn_border[sel] = True
+        
+#         #usel_new       = (nn_iborder == nodes) & (sel)
+#         #usel_mul       = (nn_iborder != nodes) & (sel) & (nn_iborder != nodes_next)
+#         #nn_iborder[usel_new] = nodes_next[usel_new]
+#         #nn_iborder[usel_mul] = -2
+
+
+#     isborder = nn_border [mask].astype(bool)
+#     idborder = nn_iborder[mask].astype(int)
+#     return isborder, idborder
+
+
+
 def find_borders(bins, mask, cells, node, condition = None):
 
     ndim   = len(cells)
@@ -233,25 +327,37 @@ def find_borders(bins, mask, cells, node, condition = None):
     condition = np.full(size, True, dtype = bool) \
         if condition is None else condition
                 
-    node_             = np.copy(node)
+    node_             = 1 + np.copy(node)
     node_[~condition] = -1
 
     nodes, _     = np.histogramdd(cells, bins, weights = node_)
     cond, _      = np.histogramdd(cells, bins, weights = condition)
     sel_cond     = cond > 0
-    nn_border    = np.full(nodes.shape, False, dtype = bool)
+    nn_nborder   = np.full(nodes.shape, 0, int)
+    nn_iborder   = np.full(nodes.shape, -1, int)
 
     for move in moves(ndim):
         coors_next     = [cells[i] + steps[i] * move[i] for i in range(ndim)]
         nodes_next, _  = np.histogramdd(coors_next, bins, weights = node_)
 
-        sel_nodes      = (nodes_next != nodes) & (nodes_next != -1)
+        sel_nodes      = (nodes_next != nodes) & (nodes_next > 0)
+                          
+        sel            = mask & sel_cond & sel_nodes
+        
+        nn_nborder[sel] += 1
 
-        sel            = (mask) & (sel_nodes) & (sel_cond)
-        nn_border[sel] = np.logical_or(nn_border[sel], nodes_next[sel])
+        usel            = sel & (nn_iborder == -1)
+        nsel            = sel & (nn_iborder != nodes_next) & (nn_iborder != -1)
+        nn_iborder[usel] = nodes_next[usel]
+        nn_iborder[nsel] = -2
+    
 
-    isborder = nn_border[mask].astype(bool)
-    return isborder
+    isborder = (nn_nborder[mask] > 0).astype(bool)
+    #isborder = nn_nborder[mask].astype(int)
+    idborder = nn_iborder[mask].astype(int) - 1
+    #print('is border ', np.sum(isborder))
+    #print('id border ', np.sum(idborder == -3), np.sum(idborder >= 0))
+    return isborder, idborder
 
 
 def gradient_between_nodes(bins, mask, cells, weights, node,
@@ -344,48 +450,6 @@ def find_passes(node, lpath, lgrad, condition = None):
             
     return is_pass
         
-
-def get_passes_matrix(enes, node, lpath, lgrad, condition = None):
-    
-    nnodes = np.unique(node)
-    enodes = [np.sum(enes[node == inode]) for inode in nnodes]
-
-    enodes, nnodes = ut_sort(enodes, nnodes)
-    
-    nsize  = len(nnodes)
-    nlink  = np.full((nsize, nsize), -1, dtype = int) 
-    elink  = np.full((nsize, nsize), 0, dtype = float)
-   
-    size   = len(enes)
-    condition = np.full(size, True, dtype = bool) if condition is None else condition
-    kid       = np.arange(size)
-    
-    sel_dir    = (kid  == lpath[ lpath ])
-    sel_border = (node != node[ lpath ])
-    nids       = np.unique(node[sel_border]) 
-    #print('nodes ', nids)
-    
-    for i, n0 in enumerate(nids):
-        for j, n1 in enumerate(nids):
-            if (j <= i): continue
-            sel_border    = (node == n0) & (node[lpath] == n1)
-            if (np.sum(sel_border) <= 0): continue # No contiguous node
-            sel_condition = condition & condition[lpath] 
-            #print('passes? ', n0, n1, np.sum(sel_border))
-            sel = (sel_border) & (sel_dir) & (sel_condition) 
-            #print('passes? ', n0, n1, np.sum(sel_border), np.sum(sel))
-            sel = sel if np.sum(sel)>0 else (sel_border) & (sel_condition)
-            if (np.sum(sel) > 0):
-                ipos   = np.argmax(lgrad[sel])
-                k0     = kid[sel][ipos]            
-                k1     = lpath[k0]
-                nlink[i, j] = k0 
-                nlink[j, i] = k1
-                elink[i, j] = enes[k0]
-                elink[j, i] = enes[k1]
-                
-    return enodes, nnodes, elink, nlink
-        
         
 def find_new_ridge(ispass, epath, elink):
     
@@ -443,141 +507,7 @@ def get_new_ridges(ispass, epath, elink, condition = None):
     paths = [get_path_from_link(*link, epath) for link in links]
     
     return paths
-
-# 
-#   Graphs
-#
  
-
-def _graph_matrix(bins, mask, cells, cenes, cnode, cisborder):
-        
-    # set the axis 
-    nodes  = np.unique(cnode)
-    enodes = [np.sum(cenes[cnode == inode]) for inode in nodes]
-
-    enodes, nodes = ut_sort(enodes, nodes)
-    #print('nodes  ', nodes)
-    #print('enodes ', enodes)
-        
-    # make the link matrix
-    size   = len(nodes)
-    nlink  = np.full((size, size), -1, dtype = int) 
-    elink  = np.full((size, size), 0, dtype = float)
-    for i, inode in enumerate(nodes):
-        is_inode = (cnode == inode)
-        for j, jnode in enumerate(nodes):
-            if (j <= i): continue
-            is_jnode = (cnode == jnode)
-            sel         = (np.logical_or(is_inode, is_jnode)) & (cisborder)
-            #print('possible conection ?', inode, jnode, np.sum(sel))
-            if (np.sum(sel) == 0): continue
-            isborder_ij =  find_borders(bins, mask, cells, cnode, condition = sel)
-            #print('common border?', inode, jnode, np.sum(isborder_ij))
-            if (np.sum(isborder_ij) == 0): continue
-            lgrad, lpath = gradient_between_nodes(bins, mask, cells,
-                                                  cenes, cnode, isborder_ij)
-            id0 = np.argmax(lgrad)
-            id1 = lpath[id0]            
-            link = (id0, id1) if cnode[id0] == inode else (id1, id0)
-            #print('link ', inode, jnode, lgrad[id0])
-            id0, id1 = link[0], link[1] 
-            nlink[i, j] = id0 
-            nlink[j, i] = id1
-            elink[i, j] = cenes[id0]
-            elink[j, i] = cenes[id1]
-        
-    #print('graph stregnth ', link_strength)
-    #print('graph cells    ', link_cells)
-    return enodes, nodes, elink, nlink
-        
-    
-def _graph_mat(elinks):
-    sel = elinks > 0
-    ulinks      = np.zeros(elinks.shape)
-    ulinks[sel] = 1 + elinks[sel] - np.max(elinks)
-    ulinks += ulinks.T
-    #print(ulinks)
-    return ulinks
-
-
-def _graph_links_mstree(elinks, nlinks):
-
-    # symmetrice the link matrix    
-    ulinks = _graph_mat(elinks)
-    #print(ulinks)
-    
-    data = scgraph.minimum_spanning_tree(ulinks)
-    mat  = data.toarray()
-    #print(mat)
-    
-
-    pairs = [list(kid) for kid in np.argwhere(mat > 0)]    
-    #print(pairs)
-    links = [(nlinks[i, j], nlinks[j, i]) for i, j in pairs]
-    
-    return links
-
-
-def _graph_links_shortestdist(elinks, nlinks):
-        
-    ulinks = _graph_mat(elinks) 
-    #print(ulinks)
-    
-    dist, pred = scgraph.shortest_path(ulinks, return_predecessors = True)
-    dist[np.isinf(dist)] = 0.
-    #print(dist)
-    #print(pred)
-    
-    kid_best = np.argmax(dist)
-    ijbest   = np.unravel_index(kid_best, dist.shape)
-    #print('best ', ijbest)
-    #print('dist ', dist[ijbest])
-
-    def _get_path(pred, i, j):
-        path = [j]
-        k = j
-        while pred[i, k] != -9999:
-            path.append(pred[i, k])
-            k = pred[i, k]
-        return path[::-1]
-
-    npath = _get_path(pred, *ijbest)
-    #print(npath)
-
-    pairs = [(npath[i], npath[i+1]) for i in range(len(npath)-1)]
-    links = [(nlinks[i, j], nlinks[j, i]) for i, j in pairs]
-        
-    return links
-    
-    
-def _graph_links(nlinks):
-    
-    size  = len(nlinks[0])
-    links = []
-    for i in range(size):
-        for j in range(size):
-            if (j <= i): continue
-            if (nlinks[i, j] >= 0):
-                i0 = nlinks[i, j]
-                j0 = nlinks[j, i]
-                links.append((i0, j0))
-    return links
-    
-
-def _graph_paths(nodes, link_cells, epath):
-    
-    paths = []
-    for i, inode in enumerate(nodes):
-        for j, jnode in enumerate(nodes):
-            #if (j <= i): continue        
-            kid0 = link_cells[i, j]
-            kid1 = link_cells[j, i]
-            if ((kid0 <= -1) & (kid1 <= -1)): continue
-            path = get_path_from_link(kid0, kid1, epath)
-            paths.append(path)
-    return paths
-
-
 #
 #--- Utilities
 #
@@ -632,11 +562,66 @@ def cells_select(cells, sel):
     return [cell[sel] for cell in cells]
 
 
+
+#
+#  Path Utilites
+#
+
+def get_path(kid, epath):
+    path = []
+    while epath[kid] != kid:
+        path.append(kid)
+        kid = epath[kid]
+    path.append(kid)
+    return path
+
+
+def get_path_from_link(kid0, kid1, epath):
+    path1 = get_path(kid0, epath)
+    path2 = get_path(kid1, epath)
+    path1.reverse()
+    path = path1 + path2
+    return path
+
+
+
+def get_path_to_path(kid, epath, path):
+    ipath  = []
+    while not np.isin(kid, path):
+        ipath.append(kid)
+        kid_next = epath[kid]
+        if (kid_next == kid): return []
+        kid = kid_next 
+    ipath.append(kid)
+    return ipath
+    
+
+#
+#  Topology
+#
+
+def cells_selection(cells, sel):
+    return [val[sel] for val in cells]
+
+
+def get_segment(cells, kids):
+    """ Fron a list of local IDs returns a segment to plot
+    inputs:
+        cells: tuple(array), m-dim tuple with n-size array with the cells' cordinates positions
+        kids: tuple(int), list of the ID to generate the segment
+    """
+    ndim = len(cells)
+    segment = [np.array([float(cells[i][kid]) for kid in kids]) for i in range(ndim)]
+    return segment
+
+
+
 #---- Analysis
 
 def analysis(df, name = 'e'):
     
     true = df.istrue.values
+    ext  = df.isext .values
     cells_types = (name + 'isnode', name +'isborder',
                    name + 'ispass', name +'isridge', 'iscore')
     
@@ -648,14 +633,16 @@ def analysis(df, name = 'e'):
         noes  = vals & (~true)
         nyes  = np.sum(yes)
         nnoes = np.sum(noes)
+        isext = np.sum(vals & ext)
         eff   = float(nyes/ntot) if ntot >0 else -1
-        dat[name+itype+'success']  = nyes
-        dat[name+itype+'failures'] = nnoes
-        dat[name+itype+'eff']      = eff
+        dat[name+itype+'_success']  = nyes
+        dat[name+itype+'_extreme']  = isext
+        dat[name+itype+'_failures'] = nnoes
+        dat[name+itype+'_eff']      = eff
     return dat       
         
     
-    
+
 
 # Link = namedtuple('Link', ('scale', 'cells', 'nodes'))
 
@@ -730,58 +717,6 @@ def analysis(df, name = 'e'):
 #         chains.append(ichain)
     
 #     return chains
-
-
-#
-#  Path Utilites
-#
-
-def get_path(kid, epath):
-    path = []
-    while epath[kid] != kid:
-        path.append(kid)
-        kid = epath[kid]
-    path.append(kid)
-    return path
-
-
-def get_path_from_link(kid0, kid1, epath):
-    path1 = get_path(kid0, epath)
-    path2 = get_path(kid1, epath)
-    path1.reverse()
-    path = path1 + path2
-    return path
-
-
-
-def get_path_to_path(kid, epath, path):
-    ipath  = []
-    while not np.isin(kid, path):
-        ipath.append(kid)
-        kid_next = epath[kid]
-        if (kid_next == kid): return []
-        kid = kid_next 
-    ipath.append(kid)
-    return ipath
-    
-
-#
-#  Topology
-#
-
-def cells_selection(cells, sel):
-    return [val[sel] for val in cells]
-
-
-def get_segment(cells, kids):
-    """ Fron a list of local IDs returns a segment to plot
-    inputs:
-        cells: tuple(array), m-dim tuple with n-size array with the cells' cordinates positions
-        kids: tuple(int), list of the ID to generate the segment
-    """
-    ndim = len(cells)
-    segment = [np.array([float(cells[i][kid]) for kid in kids]) for i in range(ndim)]
-    return segment
 
 
 #-----   CLEAN UP
