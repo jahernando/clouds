@@ -44,7 +44,7 @@ def clouds(coors, bins, weights,
     _check(coors, bins, weights)
     
     bins, mask, icells, cells, enes = \
-        frame(coors, bins, weights)
+        frame(coors, bins, weights, threshold)
     
     enes  = ut_scale(enes)
     
@@ -140,7 +140,7 @@ def _check(coors, bins, weights):
     return True
     
 
-def frame(coors, bins, weights):
+def frame(coors, bins, weights, threshold = 0.):
     
     ndim      = len(coors)
         
@@ -152,7 +152,7 @@ def frame(coors, bins, weights):
 
     counts, _ = np.histogramdd(coors, bins = bins, weights = weights)
 
-    mask      = counts > 0
+    mask      = counts > threshold
     icells    = to_coors(np.argwhere(mask))
     enes      = counts[mask]
     #nsize     = len(enes)

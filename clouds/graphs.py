@@ -46,9 +46,10 @@ def _graph(bins, mask, cells, ene):
     return Graph(enode, nnode, elink, nlink, node, epath)
     
 
-def _emap(bins, mask, cells, ene):
+def _emap(bins, mask, cells, ene, max_increase = True):
 
-    egrad, epath  = clouds.gradient(bins, mask, cells, ene)
+    #egrad, epath  = clouds.gradient(bins, mask, cells, ene)
+    egrad, epath= _path(bins, mask, cells, ene, max_increase = max_increase)
     isnode        = (egrad == 0) 
     node          = clouds.set_node(epath)
     
@@ -152,6 +153,7 @@ def _links(bins, mask, cells, ene, node, nodes):
     
     return elink, nlink
 
+
 def _graph_links(nlinks):
     
     size  = len(nlinks[0])
@@ -164,6 +166,53 @@ def _graph_links(nlinks):
                 j0 = nlinks[j, i]
                 links.append((i0, j0))
     return links
+
+
+def _degrees(nlink):
+    return np.sum(nlink > 0, axis = 0)
+
+
+
+def _path(bins, mask, cells, weights, 
+          absolute = True, max_increase = True):
+    
+    ndim, size   = len(cells), len(weights)
+    steps        = [ibin[1] - ibin[0] for ibin in bins]
+    
+    enes             = np.copy(weights)
+    ids              = np.arange(size)
+    
+    potential, _ = np.histogramdd(cells, bins, weights = enes)
+    kids, _      = np.histogramdd(cells, bins, weights = ids)
+
+    factor       = 1      if absolute     else 0
+    factor       = factor if max_increase else 100
+    nn_potential = factor * np.copy(potential)
+    nn_kids      =          np.copy(kids) .astype(int)
+    
+    fmax = lambda enext, ecurr, eref: (enext > ecurr) & (enext > eref)
+    fmin = lambda enext, ecurr, eref: (enext < ecurr) & (enext > eref)
+    _condition = fmax if max_increase else fmin
+        
+    #moves = get_moves_updown(ndim)
+    for move in clouds.moves(ndim):
+
+        coors_next         = [cells[i] + steps[i] * move[i] for i in range(ndim)]
+        potential_next, _  = np.histogramdd(coors_next, bins, weights = enes)
+        kids_next, _       = np.histogramdd(coors_next, bins, weights = ids)
+
+        sel_pot_next       = _condition(potential_next, nn_potential, potential)
+        sel                = (mask) & (sel_pot_next)
+        
+        nn_potential[sel]  = potential_next[sel]
+        nn_kids     [sel]  = kids_next     [sel]
+
+
+    egrad = nn_potential[mask] - potential[mask]
+    epath = nn_kids     [mask]
+    
+    return egrad, epath
+
 
 # def _select_link(inode, jnode, node, lgrad, lpath):
 
