@@ -90,18 +90,111 @@ def draw_histd(cells, bins, values, **kargs):
 options = {'cloud'   : {'alpha'  : 0.2},
            'node'    : {'alpha'  : 0.2},
            'isnode'  : {'marker' : 'x', 'c' : 'black' , 'alpha' : 0.8},
-           'isborder': {'marker' : '.', 'c' : 'gray'  , 'alpha' : 0.5},           
+           'isborder': {'marker' : '.', 'c' : 'gray'  , 'alpha' : 0.5},
            'ispass'  : {'marker' : '|', 'c' : 'black' , 'alpha' : 0.8},
-           'iscore'  : {'alpha' : 0.2},
+           'iscore'  : {'alpha'  : 0.2},
            'isridge' : {'marker' : 'o', 'c' : 'black' , 'alpha' : 0.5},
            'ridge'   : {                'c' : 'black' , 'alpha' : 0.8}
         }
 
 
+
+def plotter(bins, mask, cells, cloud, plot = True):
+    
+    
+    evalue    = cloud.inten
+    epath     = cloud.path
+    elink     = cloud.link
+    enode     = cloud.node
+    eisnode   = cloud.isnode
+    eisborder = cloud.isborder
+    eispass   = cloud.ispass
+    eisridge  = cloud.isridge
+    
+    ndim = len(cells)
+    #sdim = '' if ndim == 2 else '3d'
+    
+    scale = _scale(evalue)
+    
+    ax = plt.gca(projection = '3d') if ndim == 3 else  plt.gca()
+      
+    def _umask(values):
+        counts, _ = np.histogram(cells, bins = bins, weights = values)
+        umask     = counts > 0
+        return umask
+    
+    def _kargs(name, opts):
+        kargs = dict(options[name])
+        if name in opts.keys():
+            kargs.update(opts[name])
+        #print(name, kargs)
+        return kargs
+        
+    
+    def draw(cloud  = True, grad     = False, link = False, node = False,
+             isnode = True, isborder = False, ispass = False,
+             ridge  = True, isridge  = False, 
+             rotate = False, voxels  = False , opts = {}):
+        
+        if (cloud):
+            kargs = _kargs('cloud', opts)
+            if (voxels):
+                draw_histd(cells, bins, evalue, **kargs)
+            else:
+                ax.scatter(*cells, c = scale, **kargs)
+    
+        if (node):
+            kargs = _kargs('node', opts)
+            if (voxels):
+                draw_histd(bins, cells, enode, **kargs)
+            else:
+                ax.scatter(*cells, c = enode, **_kargs)
+
+        if (isnode):
+            kargs = _kargs('isnode', opts)
+            ax.scatter(*cells_select(cells, eisnode), **kargs)
+            
+        if (isborder):
+            kargs = _kargs('isborder', opts)
+            ax.scatter(*cells_select(cells, eisborder), **kargs)
+            
+        if (ispass):
+            kargs = _kargs('ispass', opts)
+            ax.scatter(*cells_select(cells, eispass), **kargs)
+            
+        if (grad):
+            draw_grad(cells, epath)
+            
+        if (link):
+            draw_grad(cells, elink)
+            
+        if (isridge):
+            kargs = _kargs('isridge', opts)
+            ax.scatter(*cells_select(cells, eisridge), **kargs)
+            
+        if (ridge):
+            kargs = _kargs('ridge', opts)
+            paths    = clouds.get_new_ridges(eispass, epath, elink)
+            for path in paths:
+                draw_path(cells, path, **kargs)
+    
+        if (rotate):
+            plot_rotate()
+            
+        return
+            
+    if plot: 
+        draw()
+    return draw
+
+
+
+
+
 def draw_cloud(cells, bins, df, name = 'e', plot = True):
     
     
-    evalue    = df[name+'value']   .values
+    evalue    = df[name+'inten']   .values
     if (name == 'p'): evalue = -evalue
    # egrad     = df[name+'grad']    .values
     epath     = df[name+'path']    .values
@@ -253,6 +346,42 @@ def draw_voxels(bins, mask, cells, value = None, **kargs):
     return
     
     
+    
+
+def draw_mc(df, cells, mccoors = None):
+
+    ismc         = df.mc       .values
+    cene         = df.mcene    .values
+    #ctime        = df.mctime   .values
+    #cmcid        = df.mcid     .values
+    ctextr       = df.mctextr  .values
+    ceextr       = df.mceextr  .values
+
+    ax = plt.gca() # assume it is 3D
+
+    ax.scatter(*cells_select(cells, ismc), 
+               c = cene[ismc], marker = 'o', alpha = 0.4, label = 'mc-cell');
+    #ax.scatter(*cells_select(cells, ctnodes), marker = '+', c = 'black', s = 60);
+    #ax.scatter(*cells_select(cells, ctnodes1), marker = 'x', c = 'black', s = 60);
+
+    ax.scatter(*cells_select(cells, ctextr == 0),
+               marker = 'D', c = 'blue', s = 60, alpha = 0.5, label = 'vertex');
+    ax.scatter(*cells_select(cells, ctextr == 1),
+               marker = 'x', c = 'blue', s = 60, alpha = 0.5, label = 't ext e');
+    ax.scatter(*cells_select(cells, ctextr >  1),
+               marker = 'd', c = 'blue', s = 60, alpha = 0.5, label = 't extr other');
+
+    ax.scatter(*cells_select(cells, ceextr == 1), 
+               marker = '+', c = 'blue', s = 60, alpha = 0.5, label = 'e extr e');
+
+    #pltclouds.draw_grad(cells, epath, alpha = 0.8);
+    if (mccoors is not None):
+        plt.gca().scatter(*mccoors, marker = '.', alpha = 0.4,
+                          c = 'red', label = 'mc');
+    plt.legend()
+    plt.xlabel('x'); plt.ylabel('y'); plt.title('MC')
+
+    return
 
 #
 #  OTher plotting

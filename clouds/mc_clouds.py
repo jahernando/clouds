@@ -20,13 +20,15 @@ def mctrue(bins, mask, cells, df,
              mctime = None, mcid = None):
     
     mctime = mcene if mctime is None else mctime
-    mcid   = mcid  if mcid   is None else mcid
+    mcid   = mcid  if mcid   is None else np.copy(mcid)
+    mcid[mcid > 2] = 3
     ones   = np.ones(len(mcene))
 
     ene    = clouds.cells_value(bins, mask, mccoors, mcene)
     counts = clouds.cells_value(bins, mask, mccoors, ones)
     time   = clouds.cells_value(bins, mask, mccoors, mctime)
     pid    = clouds.cells_value(bins, mask, mccoors, mcid)
+    counts[counts == 0] = 1
     time   = time/counts
     pid    = pid/counts
     
@@ -39,12 +41,23 @@ def mctrue(bins, mask, cells, df,
     
     #print('number of true cells ', np.sum(sel), np.sum(time >= 0), np.sum(ene >0))    
     
-    df['mcextreme'] = _mcextreme(bins, mask, cells, mccoors, mctime, mcid)
+    df['mctextr'] = _mcextreme    (bins, mask, cells, mccoors, mctime, mcid)
+    mceextr       = _mcextreme_ene(bins, mask, cells, mccoors, mcene , mcid)
+    df['mceextr'] = mceextr
+    
+    size     = len(cells[0])
+    distance = np.zeros(size)
+    kids  = np.argwhere(mceextr == 1)
+    epath = df.epath.values
+    for kid in kids:
+        path   = clouds.get_path(kid, epath)
+        #segment = clouds.get_segment(cells, path) 
+        distance[kid] = len(path) - 1
+    df['mcdist'] = distance    
     
     return df
 
-
-def _mcextreme(bins, mask, cells, mccells, mcene, mctime, mcid):
+def _mcextreme(bins, mask, cells, mccells, mctime, mcid):
         
     
     size    = len(cells[0])
@@ -70,6 +83,26 @@ def _mcextreme(bins, mask, cells, mccells, mcene, mctime, mcid):
     
     return extreme
 
+
+def _mcextreme_ene(bins, mask, cells, mccells, mcene, mcid):
+        
+    
+    size    = len(cells[0])
+    extreme = np.full(size, -1, dtype = int)
+    
+    def _set(pid, extr_type):
+        sel      = mcid == pid
+        xcell = clouds.cells_value(bins, mask, 
+                                   clouds.cells_select(mccells, sel),
+                                   mcene[sel])
+        icell = int(np.argmax(xcell))
+        #upos = [ucell[i] for ucell in mccells]
+        #print('pid ', pid, 'index ', i, 'time ', utime[i], 'pos ', upos)
+        extreme[icell] = extr_type
+    
+    for pid in (1, 2): _set(pid, 1)
+    
+    return extreme
 
 # def _mcextreme(bins, mask, cells, ene):
 

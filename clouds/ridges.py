@@ -24,67 +24,97 @@ def _filter(x: np.array, percentile = 80, binary = True):
         u[x >= u0] = 1
     return u
     
-def ana(x : np.array, steps = None):
+
+# def ridge_filter(x : np.array, steps = None, percentile = 80):
     
-    ndim  = x.ndim
-    grad  = gradient(x, steps)
-    vgrad = np.sqrt(np.sum(grad * grad, axis = ndim))
-    hess  = hessian(x, steps)
-    leig, eeig, e0 = hessian_eigh(hess)
-    rid, urid  = ridge(x, steps)
-    lap   = laplacian(hess)    
-    l1    = leig[..., 0]
-    if (ndim == 3):
-        l1 = np.minimum(l1, leig[..., 2])
-    #l1 = np.minimum([leig[..., i] for i in range(ndim -1)])
+#     uu = ridge(x, steps)
     
-    return vgrad, rid, urid, lap, l1
+#     u0 = np.percentile(uu, percentile)
+    
+#     uu[uu < u0] = 0
+
+#     return uu
 
 
-def ridge_filter(x : np.array, steps = None, percentile = 80):
+def vector_in_spherical(v: np.array):
     
-    uu = ridge(x, steps)
+    ndim   = v.shape[-1]
+    vx, vy = v[..., 0], v[..., 1]
+    vr     = np.sqrt(vx * vx + vy * vy)
+    phi    = np.arctan2(vy, vx)/np.pi
     
-    u0 = np.percentile(uu, percentile)
+    if (ndim == 2): 
+        return (vr, phi)
     
-    uu[uu < u0] = 0
+    vz    = v[..., 2]
+    theta = np.arctan2(vz, vr)/np.pi
+    vg    = np.sqrt(vx * vx + vy * vy + vz * vz)
+    return (vg, phi, theta)
+        
 
-    return uu
+# def features(x : np.array, steps = None):
+    
+#     #shape = x.shape
+#     ndim  = x.ndim
+    
+#     grad     = gradient(x, steps)
+#     grad_sph = vector_in_spherical(grad) 
+#     hess     = hessian(x, steps)
+#     lap    = laplacian(hess)    
+
+#     #leig, eeig = hess_eigh(hess)
+#     leig, eeig = np.linalg.eigh(hess)
+    
+#     #e0    = np.empty(shape + (ndim,), dtype = x.dtype)
+#     #for k in range(ndim):
+#     #    e0[..., k] = eeig[..., -1, k]  
+
+#     # todo: what to do with zero gradient?
+#     fus = []
+#     for k in range(ndim):
+#         ei = eeig[..., k]
+#         fu = np.sum(grad * ei, axis = ndim)
+#         fus.append(fu)
+        
+#     e0_sph = vector_in_spherical(eeig[..., -1])
+
+    
+#     return grad, hess, leig, eigh, vgrad, grad_esp, leig, fus
 
 
-def ridge(x : np.array, steps = None):
+# def ridge_save(x : np.array, steps = None):
     
-    shape = x.shape
-    ndim  = x.ndim
+#     shape = x.shape
+#     ndim  = x.ndim
     
-    grad  = gradient(x, steps)
-    vgrad = np.sqrt(np.sum(grad * grad, axis = ndim))    
-    vgrad = np.round(vgrad, 5)
-    hess  = hessian(x, steps)
+#     grad  = gradient(x, steps)
+#     vgrad = np.sqrt(np.sum(grad * grad, axis = ndim))    
+#     #vgrad = np.round(vgrad, 5)
+#     hess  = hessian(x, steps)
     
-    #leig, eeig = hess_eigh(hess)
-    leig, eeig, e0 = hessian_eigh(hess)
+#     #leig, eeig = hess_eigh(hess)
+#     leig, eeig, e0 = hessian_eigh(hess)
     
-    #e0    = np.empty(shape + (ndim,), dtype = x.dtype)
-    #for k in range(ndim):
-    #    e0[..., k] = eeig[..., -1, k]  
+#     #e0    = np.empty(shape + (ndim,), dtype = x.dtype)
+#     #for k in range(ndim):
+#     #    e0[..., k] = eeig[..., -1, k]  
 
-    # todo: what to do with zero gradient?        
-    uu = np.abs(np.sum(grad * e0, axis = ndim))
-    non_zero = vgrad > 0
-    uu[non_zero]  = uu[non_zero]/vgrad[non_zero]
-    uu[~non_zero] = 0.
+#     # todo: what to do with zero gradient?        
+#     uu = np.abs(np.sum(grad * e0, axis = ndim))
+#     non_zero = vgrad > 0
+#     uu[non_zero]  = uu[non_zero]/vgrad[non_zero]
+#     uu[~non_zero] = 0.
     
-    # check ridge condition
-    l0  = leig[..., -1]
-    sel = np.full(shape, True, dtype = bool)  
-    for i in range(ndim -1):
-        li = leig[..., i]
-        sel = sel & (li < 0) & (np.abs(li) > np.abs(l0))
+#     # check ridge condition
+#     l0  = leig[..., -1]
+#     sel = np.full(shape, True, dtype = bool)  
+#     for i in range(ndim -1):
+#         li = leig[..., i]
+#         sel = sel & (li < 0) & (np.abs(li) > np.abs(l0))
     
-    #uu[~sel] = 0.
+#     #uu[~sel] = 0.
     
-    return uu, sel
+#     return uu, sel
     
 
 def gradient(x : np.array, steps = None):
@@ -126,22 +156,22 @@ def hessian(x : np.array, steps = None):
     return hessian
 
 
-def hessian_eigh(hess):
+# def hessian_eigh(hess):
     
-    #leig, eeig = hess_eigh(hess)
-    shape = hess.shape[:-2]
-    ndim  = len(shape)
-    leig, eeig = np.linalg.eigh(hess)
+#     #leig, eeig = hess_eigh(hess)
+#     shape = hess.shape[:-2]
+#     ndim  = len(shape)
+#     leig, eeig = np.linalg.eigh(hess)
     
-    e0    = np.empty(shape + (ndim,), dtype = hess.dtype)
-    for k in range(ndim):
-        e0[..., k] = eeig[..., -1, k]  
+#     for k in range(ndim):
+#         e0 = np.empty(shape + (ndim,), dtype = hess.dtype)
+#         e0[..., :] = eeig[..., :, k]  
 
-    return leig, eeig, e0
+#     return leig, eeig, e0
     
 
 def laplacian(hess):
-    ndim = len(hess.shape[:-2])
+    ndim = hess.shape[-1]
     lap  = functools.reduce(operator.add, 
                             [hess[..., i, i] for i in range(ndim)])
     return lap

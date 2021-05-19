@@ -10,7 +10,7 @@ import operator
 import clouds.ridges     as ridges
 #import tables            as tb
 
-#from collections import namedtuple
+from collections import namedtuple
 
 
 #
@@ -44,75 +44,86 @@ def clouds(coors, bins, weights,
     _check(coors, bins, weights)
     
     bins, mask, icells, cells, enes = \
-        frame(coors, bins, weights, threshold)
+        get_frame(coors, bins, weights, threshold)
     
-    enes  = ut_scale(enes)
+    def _asdict(ndtup, name = 'e'):
+        data = {}
+        adic = ndtup._asdict()
+        for key in adic.keys():
+            data[name + key] = adic[key]
+        return data
+        
+    data   = get_features(bins, mask, cells, enes)
     
-    nbours = neighbours(bins, mask, cells, enes)
-    
-    vgrad = vgradient(bins, mask, cells, enes)
-    
-    plas  = laplacian(bins, mask, cells, enes)  
-    vv    = -plas + np.max(plas)
-    vv    = ut_scale(vv)
-    
-    condition = plas <= threshold
-    
-    data = {}
     for i, cell in enumerate(cells):
-        data['x'+str(i)] = cell
+        data['x'+str(i)] = cell    
+    nbours = neighbours(bins, mask, cells, enes)
     data['energy']     = enes
     data['neighbours'] = nbours
-    data['vgrad']      = vgrad
-    data['laplacian']  = plas
-    data['iscore']     = condition
+    data['kid']        = np.arange(len(enes))
     
-    size          = len(enes)
-    truecondition = np.full(size, True, bool)
-    
-    egrad, epath, elgrad, elink, enode, eisnode, eisborder, eidborder, eispass, eisridge = \
-        _clouds(bins, mask, cells, enes, truecondition)
-        
-    edata = {'evalue'    : enes,
-             'egrad'     : egrad,
-             'epath'     : epath,
-             'elgrad'    : elgrad,
-             'elink'     : elink,
-             'enode'     : enode,
-             'eisnode'   : eisnode,
-             'eisborder' : eisborder,
-             'eidborder' : eidborder,
-             'eispass'   : eispass,
-             'eisridge'  : eisridge
-             }  
-    data.update(edata)
-    
-    pgrad, ppath, plgrad, plink, pnode, pisnode, pisborder, pidborder, pispass, pisridge = \
-        _clouds(bins, mask, cells, vv, truecondition)
-        
-    pdata = {'pvalue'    : vv,
-             'pgrad'     : pgrad,
-             'ppath'     : ppath,
-             'plgrad'    : plgrad,
-             'plink'     : plink,
-             'pnode'     : pnode,
-             'pisnode'   : pisnode,
-             'pisborder' : pisborder,
-             'pidborder' : pidborder,
-             'pispass'   : pispass,
-             'pisridge'  : pisridge
-             }    
-    data.update(pdata)
+    size           = len(enes)
+    truecondition  = np.full(size, True, bool)
+    data['iscore'] = truecondition
 
-    df = pd.DataFrame(data)
-        
+    ecloud = get_cloud(bins, mask, cells, enes, truecondition)
+    data.update(_asdict(ecloud, 'e'))
     
+    lap   = data['lap']
+    vv    = -lap + np.max(lap)
+    pcloud = get_cloud(bins, mask, cells, vv, truecondition)
+    data.update(_asdict(pcloud, 'p'))
+    
+    df    = pd.DataFrame(data)
+   # frame = Frame(bins, mask, cells)
+        
     return bins, mask, cells, df
     
+Frame = namedtuple('Frame', ('bins', 'mask', 'cells'))
 
-def _clouds(bins, mask, cells, weights, condition):
+Cloud = namedtuple('Cloud', ('inten', 'grad', 'path', 'lgrad', 'link', 
+                   'node', 'isnode', 'isborder', 'idborder',
+                   'ispass', 'isridge'))
     
-    egrad, epath = gradient(bins, mask, cells, weights)
+
+def get_features(bins, mask, cells, weights):
+    
+    x, _  = np.histogramdd(cells, bins, weights = weights)
+    steps  = [ibin[1] - ibin[0] for ibin in bins]
+    
+    ndim       = x.ndim
+    grad       = ridges.gradient(x, steps)
+    vgrad      = np.sqrt(np.sum(grad * grad, axis = ndim))
+    hess       = ridges.hessian(x, steps)
+    leig, eeig = np.linalg.eigh(hess)
+    lap        = ridges.laplacian(hess)    
+
+    gradsph    = ridges.vector_in_spherical(grad)
+    e0sph      = ridges.vector_in_spherical(eeig[..., -1])
+    fus        = [np.sum(eeig[..., i] * grad, naxis = ndim) for i in range(ndim)]
+
+    data          = {}
+    data['vgrad'] = vgrad[mask] # gradsph[0][mask] (check!)
+    data['lap']   = lap[mask]
+    data['l1']    = leig[..., 0][mask]
+    data['vphi']  = gradsph[1][mask]
+    data['l0']    = leig[..., -1][mask]
+    data['e0phi'] = e0sph[1][mask]
+    data['fu0']   = fus[-1][mask]
+    data['fu1']   = fus[0][mask]
+    
+    if (ndim == 3):
+        data['l2']      = leig[..., 1][mask]
+        data['fu2']     = fus[1][mask]
+        data['vtheta']  = gradsph[2]
+        data['e0theta'] = e0sph  [2]
+    
+    return data
+
+
+def get_cloud(bins, mask, cells, weights, condition = None):
+    
+    egrad, epath = gradient_to_neighbour(bins, mask, cells, weights)
     isnode       = find_nodes(egrad)
     enode        = set_node(epath)
     
@@ -122,8 +133,10 @@ def _clouds(bins, mask, cells, weights, condition):
     
     isridge      = find_new_ridge(ispass, epath, lpath)
     
-    return egrad, epath, lgrad, lpath, enode, isnode, isborder, idborder, ispass, isridge
+    cloud = Cloud(weights, egrad, epath, lgrad, lpath, enode, isnode,
+                  isborder, idborder, ispass, isridge)
     
+    return cloud
     
 
 def _check(coors, bins, weights):
@@ -140,7 +153,7 @@ def _check(coors, bins, weights):
     return True
     
 
-def frame(coors, bins, weights, threshold = 0.):
+def get_frame(coors, bins, weights, threshold = 0.):
     
     ndim      = len(coors)
         
@@ -164,6 +177,11 @@ def frame(coors, bins, weights, threshold = 0.):
     # ISSUE: do we need icells, then ibins?
     return bins, mask, icells, cells, enes
 
+
+def _steps(bins):
+    steps    = [ibin[1] - ibin[0] for ibin in bins]
+    return steps
+     
 
 def cells_value(bins, mask, cells, weights):
     
@@ -190,33 +208,8 @@ def neighbours(bins, mask, cells, weights):
      return nbours
 
 
-def vgradient(bins, mask, cells, weights):
-
-    #ndim      = len(bins)    
-    counts, _ = np.histogramdd(cells, bins, weights = weights)
-    
-    grad      = np.gradient(counts)
-    grad2     = [igrad * igrad for igrad in grad]
-    vgrad2    = functools.reduce(operator.add, grad2)
-    vgrad     = np.sqrt(vgrad2)
-    return vgrad[mask]
-
-
-def laplacian(bins, mask, cells, weights):
-    
-    
-    steps     = [ibin[1] - ibin[0] for ibin in bins]
-    
-    counts, _ = np.histogramdd(cells, bins, weights = weights)    
-    hess      = ridges.hessian(counts, steps)
-    lapl      = ridges.laplacian(hess)
-    laplacian = lapl[mask]
-    
-    return laplacian
-
-
-def gradient(bins, mask, cells, weights,
-             condition = None, absolute = True):
+def gradient_to_neighbour(bins, mask, cells, weights,
+                          condition = None, absolute = True):
     
     ndim, size   = len(cells), len(weights)
     steps        = [ibin[1] - ibin[0] for ibin in bins]
@@ -233,12 +226,15 @@ def gradient(bins, mask, cells, weights,
 
     factor       = 1 if absolute else 0
     nn_potential = factor * np.copy(potential)
+    nn_grad      =     0  * np.copy(potential)
     nn_kids      =          np.copy(kids) .astype(int)
     sel_cond     = cond == True    
     
     #moves = get_moves_updown(ndim)
     for move in moves(ndim):
 
+        vmove  = np.array([steps[i] * move[i] for i in range(ndim)])
+        vmode  = np.sqrt(np.sum(vmove * vmove))
         coors_next         = [cells[i] + steps[i] * move[i] for i in range(ndim)]
         potential_next, _  = np.histogramdd(coors_next, bins, weights = enes)
         kids_next, _       = np.histogramdd(coors_next, bins, weights = ids)
@@ -247,11 +243,12 @@ def gradient(bins, mask, cells, weights,
         sel                = (mask) & (sel_cond) & (sel_pot_next)
         
         nn_potential[sel]  = potential_next[sel]
+        nn_grad     [sel]  = (potential_next[sel] - potential[sel])/vmode
         nn_kids     [sel]  = kids_next     [sel]
 
 
-    lgrad = nn_potential[mask] - potential[mask]
-    lpath = nn_kids     [mask]
+    lgrad = nn_grad[mask]#nn_potential[mask] - potential[mask]
+    lpath = nn_kids[mask]
     
     return lgrad, lpath
 
@@ -466,6 +463,7 @@ def find_new_ridge(ispass, epath, elink):
     
     return isridge
     
+
 def energy_in_ridge(enes, ridge, epath):
     size     = len(enes)
     kids     = np.arange(size)
