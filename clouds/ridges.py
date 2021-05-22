@@ -12,28 +12,90 @@ Created on Tue Apr 27 15:24:01 2021
 import numpy as np
 import functools
 import operator
+        
+        
+def edge_filter(x: np.array, steps = None, perc = 20, dolvvv = True):
+    
+    ndim       = x.ndim
+    grad       = gradient(x, steps)
+    hess       = hessian(x, steps)
+
+    lvv = np.zeros(grad.shape[:-1])
+    for i in range(ndim):
+        for j in range(ndim):
+            lvv += hess[..., i, j] * grad[..., i] * grad[..., j]
+    
+    lvv   = np.abs(lvv) 
+    cut   = np.percentile(lvv, perc)
+    sel   = lvv <= cut
+
+    glvv = gradient(lvv, steps)
+    lvvv = np.zeros(grad.shape[:-1], dtype = grad.dtype)
+    for i in range(ndim):
+        lvvv += glvv[..., i] * grad[..., i]
+        
+    # correct difintion with lvvv <0!
+    #lvvv = np.abs(lvvv)
+    #sel1 = lvvv <= np.percentile(lvvv, perc)
+    if (dolvvv):
+        sel1 = lvvv <= 0
+        cut  = np.percentile(lvv[sel1], perc)
+        sel  = lvv <= cut
+    
+    return sel
     
 
-def _filter(x: np.array, percentile = 80, binary = True):
+def ridge_filter(x: np.array, steps = None, perc = 20, allproj = True):
     
-    u0 = np.percentile(x, percentile)
-    u  = np.copy(x)
-     
-    u[x < u0] = 0
-    if (binary):
-        u[x >= u0] = 1
-    return u
+    sels, fus = _ridge(x, steps)
     
+    sel  = sels[0]
+    if (allproj):
+        for isel in sels[1: ]: sel = (sel) & isel
+ 
+    fu    = fus[0] * fus[0]
+    if (allproj):
+        for fui in fus[1 : -1]: fu += fui * fui
+    fu    = np.sqrt(fu)
+    
+    cut   = np.percentile(fu[sel], perc)
+    sel   = (sel) & (fu <= cut)
+    
+    return sel
 
-# def ridge_filter(x : np.array, steps = None, percentile = 80):
-    
-#     uu = ridge(x, steps)
-    
-#     u0 = np.percentile(uu, percentile)
-    
-#     uu[uu < u0] = 0
 
-#     return uu
+def _ridge(x: np.array, steps = None):
+    
+    ndim       = x.ndim
+    grad       = gradient(x, steps)
+    vgrad      = np.sqrt(np.sum(grad * grad, axis = ndim))
+    hess       = hessian(x, steps)
+    leig, eeig = np.linalg.eigh(hess)
+    
+    ls    = [leig[..., i]                             for i in range(ndim)]
+    fus   = [np.sum(eeig[..., i] * grad, axis = ndim) for i in range(ndim)]
+    fus   = [fu/vgrad for fu in fus]
+    for fu in fus: fu[np.isclose(vgrad, 0)] = -1.2
+
+    l0    = ls[-1]
+    sels  = [(ls[i] <0) & (np.abs(ls[i]) >= np.abs(l0)) for i in range(ndim-1)]
+ 
+    return sels, fus
+
+
+def features(x: np.array, steps = None):
+    
+    ndim       = x.ndim
+    grad       = gradient(x, steps)
+    vgrad      = np.sqrt(np.sum(grad * grad, axis = ndim))
+    hess       = hessian(x, steps)
+    leig, eeig = np.linalg.eigh(hess)
+    lap        = np.zeros(x.shape)
+    for i in range(ndim):
+        lap += leig[..., i]
+    
+    return grad, vgrad, lap, leig, eeig
+
 
 
 def vector_in_spherical(v: np.array):
@@ -51,36 +113,6 @@ def vector_in_spherical(v: np.array):
     vg    = np.sqrt(vx * vx + vy * vy + vz * vz)
     return (vg, phi, theta)
         
-
-# def features(x : np.array, steps = None):
-    
-#     #shape = x.shape
-#     ndim  = x.ndim
-    
-#     grad     = gradient(x, steps)
-#     grad_sph = vector_in_spherical(grad) 
-#     hess     = hessian(x, steps)
-#     lap    = laplacian(hess)    
-
-#     #leig, eeig = hess_eigh(hess)
-#     leig, eeig = np.linalg.eigh(hess)
-    
-#     #e0    = np.empty(shape + (ndim,), dtype = x.dtype)
-#     #for k in range(ndim):
-#     #    e0[..., k] = eeig[..., -1, k]  
-
-#     # todo: what to do with zero gradient?
-#     fus = []
-#     for k in range(ndim):
-#         ei = eeig[..., k]
-#         fu = np.sum(grad * ei, axis = ndim)
-#         fus.append(fu)
-        
-#     e0_sph = vector_in_spherical(eeig[..., -1])
-
-    
-#     return grad, hess, leig, eigh, vgrad, grad_esp, leig, fus
-
 
 # def ridge_save(x : np.array, steps = None):
     
@@ -155,19 +187,6 @@ def hessian(x : np.array, steps = None):
             hessian[..., k, l] = grad_kl 
     return hessian
 
-
-# def hessian_eigh(hess):
-    
-#     #leig, eeig = hess_eigh(hess)
-#     shape = hess.shape[:-2]
-#     ndim  = len(shape)
-#     leig, eeig = np.linalg.eigh(hess)
-    
-#     for k in range(ndim):
-#         e0 = np.empty(shape + (ndim,), dtype = hess.dtype)
-#         e0[..., :] = eeig[..., :, k]  
-
-#     return leig, eeig, e0
     
 
 def laplacian(hess):

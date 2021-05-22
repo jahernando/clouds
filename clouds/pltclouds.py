@@ -383,6 +383,30 @@ def draw_mc(df, cells, mccoors = None):
 
     return
 
+
+def _voxels(cells, ene, steps):
+    
+    voxels_size = steps
+    
+    voxel_size = voxels[0].size
+    voxel_pos  = np.array([voxel.pos for voxel in voxels])
+    voxel_ene  = np.array([voxel.E   for voxel in voxels])
+    min_corner = np.min(voxel_pos, axis=0) - voxel_size/2.
+    max_corner = np.max(voxel_pos, axis=0) + voxel_size/2.
+    xbins = np.arange(min_corner[0], max_corner[0] + voxel_size[0], voxel_size[0])
+    ybins = np.arange(min_corner[1], max_corner[1] + voxel_size[0], voxel_size[1])
+    zbins = np.arange(min_corner[2], max_corner[2] + voxel_size[0], voxel_size[2])
+    x, y, z = np.meshgrid(xbins, ybins, zbins, indexing="ij")
+    hist, _ = np.histogramdd(voxel_pos, bins=[xbins, ybins, zbins], weights=voxel_ene)
+    filled  = hist>0
+    # color
+    norm   = colors  .Normalize(vmin=min(voxel_ene), vmax=max(voxel_ene), clip=True)
+    mapper = colormap.ScalarMappable(norm=norm, cmap=colormap.coolwarm)
+    col = hist.astype(object)
+    for i, j, k in np.argwhere(filled):
+        col[i, j, k] = mapper.to_rgba(col[i, j, k])
+        col[~filled] = None
+
 #
 #  OTher plotting
 #

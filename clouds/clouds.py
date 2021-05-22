@@ -53,7 +53,7 @@ def clouds(coors, bins, weights,
             data[name + key] = adic[key]
         return data
         
-    data   = get_features(bins, mask, cells, enes)
+    data  = get_features(bins, mask, cells, enes)
     
     for i, cell in enumerate(cells):
         data['x'+str(i)] = cell    
@@ -81,16 +81,16 @@ def clouds(coors, bins, weights,
     
 Frame = namedtuple('Frame', ('bins', 'mask', 'cells'))
 
-Cloud = namedtuple('Cloud', ('inten', 'grad', 'path', 'lgrad', 'link', 
-                   'node', 'isnode', 'isborder', 'idborder',
-                   'ispass', 'isridge'))
+Cloud = namedtuple('Cloud', ('inten', 'grad', 'path', 'gradrel', 'pathrel',
+                             'lgrad', 'link', 'node', 'isnode', 'isborder',
+                             'idborder', 'ispass', 'isridge'))
     
 
 def get_features(bins, mask, cells, weights):
     
-    x, _  = np.histogramdd(cells, bins, weights = weights)
-    steps  = [ibin[1] - ibin[0] for ibin in bins]
-    
+    x, _       = np.histogramdd(cells, bins, weights = weights)
+    steps      = [bin[1] - bin[0] for bin in bins]
+
     ndim       = x.ndim
     grad       = ridges.gradient(x, steps)
     vgrad      = np.sqrt(np.sum(grad * grad, axis = ndim))
@@ -100,8 +100,8 @@ def get_features(bins, mask, cells, weights):
 
     gradsph    = ridges.vector_in_spherical(grad)
     e0sph      = ridges.vector_in_spherical(eeig[..., -1])
-    fus        = [np.sum(eeig[..., i] * grad, naxis = ndim) for i in range(ndim)]
-
+    fus        = [np.sum(eeig[..., i] * grad, axis = ndim) for i in range(ndim)]
+    
     data          = {}
     data['vgrad'] = vgrad[mask] # gradsph[0][mask] (check!)
     data['lap']   = lap[mask]
@@ -109,21 +109,26 @@ def get_features(bins, mask, cells, weights):
     data['vphi']  = gradsph[1][mask]
     data['l0']    = leig[..., -1][mask]
     data['e0phi'] = e0sph[1][mask]
-    data['fu0']   = fus[-1][mask]
-    data['fu1']   = fus[0][mask]
+    data['ge0']   = fus[-1][mask]
+    data['ge1']   = fus[0][mask]
+
     
     if (ndim == 3):
         data['l2']      = leig[..., 1][mask]
-        data['fu2']     = fus[1][mask]
-        data['vtheta']  = gradsph[2]
-        data['e0theta'] = e0sph  [2]
-    
+        data['ge2']     = fus[1][mask]
+        data['vtheta']  = gradsph[2] [mask]
+        data['e0theta'] = e0sph  [2] [mask]
+
     return data
 
 
 def get_cloud(bins, mask, cells, weights, condition = None):
     
-    egrad, epath = gradient_to_neighbour(bins, mask, cells, weights)
+    egrad, epath = gradient_to_neighbour(bins, mask, cells, weights,
+                                         absolute = True)
+    egradrel, epathrel = gradient_to_neighbour(bins, mask, cells, weights,
+                                         absolute = False)
+
     isnode       = find_nodes(egrad)
     enode        = set_node(epath)
     
@@ -133,7 +138,8 @@ def get_cloud(bins, mask, cells, weights, condition = None):
     
     isridge      = find_new_ridge(ispass, epath, lpath)
     
-    cloud = Cloud(weights, egrad, epath, lgrad, lpath, enode, isnode,
+    cloud = Cloud(weights, egrad, epath, egradrel, epathrel,
+                  lgrad, lpath, enode, isnode,
                   isborder, idborder, ispass, isridge)
     
     return cloud
@@ -558,7 +564,6 @@ def moves(ndim):
 
 def cells_select(cells, sel):
     return [cell[sel] for cell in cells]
-
 
 
 #

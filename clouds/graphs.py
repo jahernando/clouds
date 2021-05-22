@@ -49,7 +49,7 @@ def _graph(bins, mask, cells, ene):
 def _emap(bins, mask, cells, ene, max_increase = True):
 
     #egrad, epath  = clouds.gradient(bins, mask, cells, ene)
-    egrad, epath= _path(bins, mask, cells, ene, max_increase = max_increase)
+    egrad, epath  = _path(bins, mask, cells, ene, max_increase = max_increase)
     isnode        = (egrad == 0) 
     node          = clouds.set_node(epath)
     

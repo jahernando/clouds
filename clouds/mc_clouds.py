@@ -54,6 +54,10 @@ def mctrue(bins, mask, cells, df,
         #segment = clouds.get_segment(cells, path) 
         distance[kid] = len(path) - 1
     df['mcdist'] = distance    
+        
+    mcnode = np.full(size, False, dtype = bool)
+    mcnode[df.enode.values[df.mceextr == 1]] = True
+    df['mcnode'] = mcnode
     
     return df
 
