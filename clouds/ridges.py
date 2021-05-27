@@ -14,54 +14,87 @@ import functools
 import operator
         
         
-def edge_filter(x: np.array, steps = None, perc = 20, dolvvv = True):
+def edge_filter(x: np.array, steps = None, 
+                perc = 20, require_curvature = True,
+                mask = None,
+                ):
+    """
+    Edge Filter.
     
-    ndim       = x.ndim
-    grad       = gradient(x, steps)
-    hess       = hessian(x, steps)
+    Definition: 
+        Select cells where the magnitude of the gradient is maximal
+        in the gradien direction
+        * Lvv: second derivative respect the gradient direction is null
+        * Lvvv: third derivative respect the gradient direction is negative
+    
+    """
+    
+    ndim   = x.ndim
+    grad   = gradient(x, steps)
+    #hess       = hessian(x, steps)
 
-    lvv = np.zeros(grad.shape[:-1])
+    lv   = np.sqrt(np.sum(grad * grad, axis = ndim))
+    glv  = gradient(lv, steps)
+    lvv  = np.zeros(grad.shape[:-1], dtype = grad.dtype)
     for i in range(ndim):
-        for j in range(ndim):
-            lvv += hess[..., i, j] * grad[..., i] * grad[..., j]
-    
+        lvv += glv[..., i] * grad[..., i]
+    lvv  = lvv / lv
+    # what to do with the lv = 0.?
+    lvv[np.isclose(lv, 0)] = 0.        
     lvv   = np.abs(lvv) 
-    cut   = np.percentile(lvv, perc)
-    sel   = lvv <= cut
 
     glvv = gradient(lvv, steps)
     lvvv = np.zeros(grad.shape[:-1], dtype = grad.dtype)
     for i in range(ndim):
         lvvv += glvv[..., i] * grad[..., i]
-        
+    lvvv  = lvvv / lv
+    lvvv[np.isclose(lv, 0)] = 0.        
+
     # correct difintion with lvvv <0!
     #lvvv = np.abs(lvvv)
     #sel1 = lvvv <= np.percentile(lvvv, perc)
-    if (dolvvv):
-        sel1 = lvvv <= 0
-        cut  = np.percentile(lvv[sel1], perc)
-        sel  = lvv <= cut
     
-    return sel
+    mask = np.full(x.shape, True) if mask is None else mask
+    sel  = lvvv < 0 if require_curvature else np.full(x.shape, True)
+    
+    sel  = (sel) & (mask)
+    cut  = np.percentile(lvv[sel], perc)
+    selp = lvv <= cut
+    
+    sel  = (sel) & (selp)
+    
+    return sel, lvv
     
 
-def ridge_filter(x: np.array, steps = None, perc = 20, allproj = True):
+
+
+def ridge_filter(x: np.array, steps = None, perc = 20, allproj = True,
+                 mask = None,):
     
     sels, fus = _ridge(x, steps)
     
-    sel  = sels[0]
+    mask = np.full(x.shape, True) if mask is None else mask
+
+    sel  = (sels[0]) & (mask)
     if (allproj):
         for isel in sels[1: ]: sel = (sel) & isel
  
+    # Two options, either the orthogonal derection to the grad is null
+    # either the max-eigenvector is parallel to the gradient
+    
     fu    = fus[0] * fus[0]
     if (allproj):
         for fui in fus[1 : -1]: fu += fui * fui
     fu    = np.sqrt(fu)
-    
-    cut   = np.percentile(fu[sel], perc)
+    cut   = np.percentile(fu[sel],  perc)
     sel   = (sel) & (fu <= cut)
     
-    return sel
+    
+    fu = np.abs(fus[-1])
+    cut   = np.percentile(fu[sel],  100 - perc)
+    sel   = (sel) & (fu >= cut)
+    
+    return sel, fu
 
 
 def _ridge(x: np.array, steps = None):
@@ -75,10 +108,11 @@ def _ridge(x: np.array, steps = None):
     ls    = [leig[..., i]                             for i in range(ndim)]
     fus   = [np.sum(eeig[..., i] * grad, axis = ndim) for i in range(ndim)]
     fus   = [fu/vgrad for fu in fus]
-    for fu in fus: fu[np.isclose(vgrad, 0)] = -1.2
+    # what to do with a vgrad close to 0?
+    for fu in fus: fu[np.isclose(vgrad, 0)] = 1.
 
     l0    = ls[-1]
-    sels  = [(ls[i] <0) & (np.abs(ls[i]) >= np.abs(l0)) for i in range(ndim-1)]
+    sels  = [(ls[i] < 0) & (np.abs(ls[i]) > np.abs(l0)) for i in range(ndim-1)]
  
     return sels, fus
 
@@ -195,6 +229,54 @@ def laplacian(hess):
                             [hess[..., i, i] for i in range(ndim)])
     return lap
 
+
+
+# def edge_filter(x: np.array, steps = None, mask = None, 
+#                 perc = 20, require_curvature = True):
+#     """
+#     Edge Filter.
+    
+#     Definition: 
+#         Select cells where the magnitude of the gradient is maximal
+#         in the gradien direction
+#         * Lvv: second derivative respect the gradient direction is null
+#         * Lvvv: third derivative respect the gradient direction is negative
+    
+#     """
+    
+#     ndim       = x.ndim
+#     grad       = gradient(x, steps)
+#     hess       = hessian(x, steps)
+
+#     lvv = np.zeros(grad.shape[:-1])
+#     for i in range(ndim):
+#         for j in range(ndim):
+#             lvv += hess[..., i, j] * grad[..., i] * grad[..., j]
+    
+#     lvv   = np.abs(lvv) 
+#     #cut   = np.percentile(lvv, perc)
+#     #sel   = lvv <= cut
+
+#     glvv = gradient(lvv, steps)
+#     lvvv = np.zeros(grad.shape[:-1], dtype = grad.dtype)
+#     for i in range(ndim):
+#         lvvv += glvv[..., i] * grad[..., i]
+        
+#     # correct difintion with lvvv <0!
+#     #lvvv = np.abs(lvvv)
+#     #sel1 = lvvv <= np.percentile(lvvv, perc)
+    
+#     mask = np.full(x.shape, True) if mask is None else mask
+#     sel  = lvvv <= 0 if require_curvature else np.full(x.shape, True)
+    
+#     sel  = (sel) & (mask)
+#     cut  = np.percentile(lvv[sel], perc)
+#     selp = lvv <= cut
+    
+#     sel  = (sel) & (selp)
+    
+#     return sel, lvv
+    
 
 
 # def hess2d_eigvals(hess):

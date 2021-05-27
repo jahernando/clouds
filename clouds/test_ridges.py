@@ -46,3 +46,14 @@ def generate_image(nbins, ranges, fun):
     zs     = fun(*xmesh)
     
     return bins, centers, zs, xmesh
+
+
+def generate_line(size, xline, eline, sigma = 0):
+    
+    t    = np.random.uniform(size = size)
+    x    = [xl(t) for xl in xline]
+    for xi in x: xi += sigma * np.random.normal(size = size)
+    ene  = eline(t)
+    
+    return x, ene, t
+

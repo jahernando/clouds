@@ -17,6 +17,20 @@ def cells_select(cells, sel):
     return [cell[sel] for cell in cells]
 
 
+def to_color(weights, cmap = colormap.rainbow, alpha = 1.):
+    
+    shape = weights.shape
+    scale = weights.flatten()
+    norm      = colors  .Normalize(vmin = np.min(scale), vmax = np.max(scale), clip=True)
+    mapper    = colormap.ScalarMappable(norm=norm, cmap= colormap.rainbow)
+    fcolor = mapper.to_rgba(scale)
+    fcolor = fcolor.reshape(shape + (4,))
+    fcolor[..., 3] = alpha * fcolor[..., 3]
+    
+    return fcolor
+
+
+
 # def cells_sorted(cells, value):
 #     size   = len(cells[0])
 #     kids   = np.arange(size)
@@ -56,11 +70,11 @@ def _scale(values, a = 0, b = 1):
     return scale
 
 
-def draw_histd(cells, bins, values, **kargs):
+def voxels(cells, bins, values = None, **kargs):
     
-    scale  = _scale(values.astype(float))
-    #scale  = values
-
+    size   = len(cells[0])
+    values = np.ones(size) if values is None else values
+    
     ndim = len(bins)
     
     if (ndim == 2):
@@ -68,25 +82,25 @@ def draw_histd(cells, bins, values, **kargs):
         #plt.colorbar();
         return
 
-    counts, _  = np.histogramdd(cells, bins = bins, weights = values)
-    mask       = counts > 0
+    hist, _  = np.histogramdd(cells, bins = bins, weights = values)
+    xmesh    = np.meshgrid(*bins, indexing = 'ij')
+    mask     = hist > 0
+    #umask      = np.copy(mask)
+    #filled     = np.swapaxes(umask, 0, 1).astype(bool)
 
-    xx, yy, zz = np.meshgrid(*bins)
-    umask      = np.copy(mask)
-    filled     = np.swapaxes(umask, 0, 1).astype(bool)
-
-    norm      = colors  .Normalize(vmin=min(scale), vmax=max(scale), clip=True)
-    mapper    = colormap.ScalarMappable(norm=norm, cmap=colormap.coolwarm)
-    facecolor = mapper.to_rgba(scale)
-    #ax.voxels(x, y, z, filled, alpha=0.5)
-
-    #facecolor = 'blue'
-
+    alpha = kargs['alpha'] if 'alpha' in kargs.keys() else 0.1
+    cols = to_color(hist, alpha)
+ 
     plt.gca(projection = '3d')
-    plt.gca().voxels(xx, yy, zz, filled, facecolor = facecolor, **kargs);
+    plt.gca().voxels(*xmesh, mask, 
+                     facecolor = cols[mask], 
+                     #edgecolor = cols[mask],
+                     **kargs);
+    
     return
     
-        
+draw_histd = voxels
+
 options = {'cloud'   : {'alpha'  : 0.2},
            'node'    : {'alpha'  : 0.2},
            'isnode'  : {'marker' : 'x', 'c' : 'black' , 'alpha' : 0.8},
@@ -100,7 +114,6 @@ options = {'cloud'   : {'alpha'  : 0.2},
 
 
 def plotter(bins, mask, cells, cloud, plot = True):
-    
     
     evalue    = cloud.inten
     epath     = cloud.path
@@ -291,8 +304,12 @@ def draw_cloud(cells, bins, df, name = 'e', plot = True):
     return draw
 
 
+#def plotter_graph(bins, mask, cells, graph):
+    
+    
+
 def draw_graph(cells, enes, epath, nlinks,
-               links  = None, node_size = 100, link_size = 2.):
+               links  = None, node_size = 100, link_size = 4.):
     
     ndim = len(cells)
     size = len(cells[0])
@@ -325,25 +342,25 @@ def draw_graph(cells, enes, epath, nlinks,
     return
 
 
-def draw_voxels(bins, mask, cells, value = None, **kargs):
+# def draw_voxels(bins, mask, cells, value = None, **kargs):
     
         
-    xx, yy, zz = np.meshgrid(*bins)
-    umask      = np.copy(mask)
-    filled     = np.swapaxes(umask, 0, 1).astype(bool)
+#     xx, yy, zz = np.meshgrid(*bins)
+#     umask      = np.copy(mask)
+#     filled     = np.swapaxes(umask, 0, 1).astype(bool)
 
-    def _facecolor(scale):
-        norm   = colors  .Normalize(vmin=min(scale), vmax=max(scale), clip=True)
-        mapper = colormap.ScalarMappable(norm=norm, cmap=colormap.coolwarm)
-        fc     = mapper.to_rgba(scale)
-        return fc
-    #ax.voxels(x, y, z, filled, alpha=0.5)
+#     def _facecolor(scale):
+#         norm   = colors  .Normalize(vmin=min(scale), vmax=max(scale), clip=True)
+#         mapper = colormap.ScalarMappable(norm=norm, cmap=colormap.coolwarm)
+#         fc     = mapper.to_rgba(scale)
+#         return fc
+#     #ax.voxels(x, y, z, filled, alpha=0.5)
 
-    facecolor = 'blue' if value is None else _facecolor(value)
+#     facecolor = 'blue' if value is None else _facecolor(value)
 
-    plt.gca(projection = '3d')
-    plt.gca().voxels(xx, yy, zz, filled, facecolor = facecolor, **kargs);
-    return
+#     plt.gca(projection = '3d')
+#     plt.gca().voxels(xx, yy, zz, filled, facecolor = facecolor, **kargs);
+#     return
     
     
     
@@ -384,7 +401,26 @@ def draw_mc(df, cells, mccoors = None):
     return
 
 
-def _voxels(cells, ene, steps):
+def draw_voxels(bins, mask, cells,  weights):
+    
+    
+    xmesh   = np.meshgrid(*bins, indexing="ij")
+    hist, _  = np.histogramdd(cells, bins, weights = weights)
+    filled  = hist > 0
+    # color
+    norm   = colors  .Normalize(vmin=min(voxel_ene), 
+                                vmax=max(voxel_ene), clip=True)
+    mapper = colormap.ScalarMappable(norm=norm, cmap=colormap.coolwarm)
+    col    = hist.astype(object)
+    for i, j, k in np.argwhere(filled):
+        col[i, j, k] = mapper.to_rgba(col[i, j, k])
+        col[~filled] = None
+
+    ax = fig.gca(projection='3d')
+    ax.voxels(*xmesh, filled, alpha=0.5, facecolors = col, edgecolor="lightgray")
+    
+
+def _voxels(cells, bins, steps):
     
     voxels_size = steps
     

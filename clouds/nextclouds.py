@@ -14,6 +14,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 import clouds.clouds    as clouds
+import clouds.ridges    as ridges
 import clouds.mc_clouds as mcclouds
 
 
@@ -104,13 +105,15 @@ def run_event(steps, coors, ene, mccoors, mcene, mctime, mcid):
     dft = df_add_uevar(df)
     dft = df_add_pair(dft)
     dft = df_add_pair_extreme(dft)
-    return dft
+    return bins, mask, cells, dft
 
 
-def run(nfiles = 100, steps = (10, 10, 6)):
+
+def run(nfiles = 100, steps = (10, 10, 4)):
     
     filenames = get_filenames()
     dfs = []
+    odata = {'file':[], 'event':[]}
     for i, filename in enumerate(filenames[:nfiles]):
         events = get_event_numbers(filename)
         print('file ', i, filename, ', events ', events)
@@ -122,13 +125,20 @@ def run(nfiles = 100, steps = (10, 10, 6)):
             ene = evtdata[1]
             if (np.sum(ene) < 2.1): continue
             #print('Event ', event, np.sum(ene))
-            idf = run_event(steps, *evtdata)
+            bins, mask, cells, idf = run_event(steps, *evtdata)
             idf['file']  = i
-            idf['event'] = event
+            idf['event'] = event            
             dfs.append(idf)
-
-    df = pd.concat(dfs, ignore_index = True)
-    return df
+            idat = ana_mc_img_filters(bins, mask, cells, idf)
+            for key in idat.keys():
+                if key not in odata.keys(): odata[key] = []
+                odata[key].append(idat[key])
+            odata['event'].append(event)
+            odata['file'] .append(i)
+            
+    df  = pd.concat(dfs, ignore_index = True)
+    dfa = pd.DataFrame(odata)
+    return df, dfa
     
 
 def df_add_uevar(dft):
@@ -149,14 +159,141 @@ def df_add_pair(dft):
     dft['epair'] = epair
     return dft
 
+
 def df_add_pair_extreme(dft):
+    
     isextreme = dft.mceextr.values == 1
     epathrel  = (dft.epathrel.values).astype(int)
     ispair    = (isextreme) | (isextreme[epathrel])
     dft['mcpairextr'] = ispair
     return dft
 
-#--- plotting
+def _roc(sel, ref):
+    
+    ntot = np.sum(sel)
+    nsig = np.sum(ref)    
+    nok  = np.sum(sel & ref)
+    eff  = float(nok/nsig)
+    pur  = float(nok/ntot)
+    #print(eff, pur, nok, nsig, ntot)
+    return eff, pur, nok, nsig, ntot
+
+def _roc_in(x, xref):
+    ntot  = len(x)
+    nsig  = len(xref)
+    nok   = np.sum(np.isin(x, xref))
+    eff   = float(nok/nsig)
+    pur   = float(nok/ntot)
+    #print(eff, pur, nok, nsig, ntot)
+    return eff, pur, nok, nsig, ntot
+
+
+def _ipos_in(val, df):
+    
+    isnode = df.eisnode.values == True
+    node   = df.enode.values
+    mcextr = df.mceextr.values == 1
+    mcnodes = np.unique(node[mcextr])
+    knodes  = np.argwhere(isnode == True).flatten()
+    #print('val nodes ', val[isnode])
+    #print('id  nodes ', knodes)
+    #print('mc  nodes ', mcnodes)
+    val, knodes = clouds.ut_sort(val[isnode], knodes)
+    #print('vals order ' , val)
+    #print('nodes order ', knodes)
+    
+    pos = np.full(2, -1, int)
+    for i, k in enumerate(mcnodes):
+        if (k not in knodes): continue
+        pos[i] = int(np.argwhere(knodes == k))
+    #print('pos ', pos)
+    return pos
+
+
+def _ana_mc_filter(sel, dft, mask):
+
+    mc     = dft.mc.values      == True
+    mcextr = dft.mceextr.values == 1
+
+    data = {}
+    data['cells'] = _roc(sel[mask], mc)
+    data['cells-extr']  = _roc(sel[mask], mcextr)
+    
+    node        = dft.enode.values
+    nodesmc     = np.unique(node[mc])
+    nodesmcextr = np.unique(node[mcextr])
+    xnodes      = np.unique(node[sel[mask]])
+    #print('xnodes ' , xnodes)
+    #print('nodesmc ', nodesmc)
+    #print('nodexmcextr', nodesmcextr)
+
+    data['nodes'] = _roc_in(xnodes, nodesmc)
+    data['nodes-extr'] = _roc_in(xnodes, nodesmcextr)
+    return data    
+
+
+def ana_mc_img_filters(bins, mask, cells, df):
+
+
+    steps = [bin[1] - bin[0] for bin in bins]    
+
+    enes  = df.energy.values
+    img, _ = np.histogramdd(cells, bins, weights = enes);
+    
+    grad, vgrad, lap, leig, eeig = ridges.features(img, steps)
+    edge_sel , ledge             = ridges.edge_filter(img, steps)
+    ridge_sel, lridge            = ridges.ridge_filter(img, steps)
+    l1  = leig[..., 0]
+
+    #mc     = dft.mc     .values == True
+    #mcextr = dft.mceextr.values == 1
+    #isnode = dft.eisnode.values == True
+    #mcnode = dft.mcnode .values == True
+    
+    def _fill(idat, label):
+        for i, key in enumerate(('eff', 'pur', 'nsel', 'ntrue', 'ntot')):
+            odata[label + '.' + key] = idat[i]
+
+
+    filters = {}
+    filters['img.40']   = (img   >= np.percentile(img[mask]  , 40))
+    filters['vgrad.40'] = (vgrad >= np.percentile(vgrad[mask], 40))
+    filters['lap.60']   = (lap   <= np.percentile(lap[mask]  , 60))
+    filters['l1.60']    = (l1    <= np.percentile(l1[mask]   , 60))
+    
+    filters['img.90']   = (img   >= np.percentile(img[mask]   , 90))
+    filters['vgrad.90'] = (vgrad >= np.percentile(vgrad[mask] , 90))
+    filters['lap.10']   = (lap   <= np.percentile(lap[mask]   , 10))
+    filters['l1.10']    = (l1    <= np.percentile(l1[mask]    , 10))
+
+    filters['edge']     = edge_sel
+    filters['ridge']    = ridge_sel
+
+
+    odata = {}
+    for key in filters.keys():
+        data = _ana_mc_filter(mask & (filters[key]), df, mask)
+        for name in ('cells', 'nodes', 'nodes-extr'):
+            _fill(data[name], name + '.' +key)
+
+    vars = {}
+    vars['img']   = img
+    vars['vgrad'] = vgrad
+    vars['lap']   = -lap
+    vars['l1']    = -l1
+    for key in vars.keys():
+        ipos = _ipos_in(vars[key][mask], df)
+        for i, ip in enumerate(ipos):
+            odata[key +'.extr'+str(i)] = int(ip) 
+
+    #for key in odata.keys():
+    #    print(key, odata[key])
+    return odata
+
+
+#
+#   Plotting
+#
 
 
 def get_plotter_var(mc, mcextr):
@@ -197,21 +334,4 @@ def get_drawer(cells):
             plt.xlabel('x'); plt.ylabel('y'); 
     return _plot   
 
-
-def froc(mc, mcext):
-    
-    ntrues = np.sum(mc == True)
-    nextr  = mcext == True
-    
-    def _roc(val):
-        
-        ntot = len(val)
-        nmc  = len(val[mc == True])
-        nok  = len(val[mcext]) if nextr >0 else 0
-        
-        eff = float(nmc)/float(ntrues)
-        pur = float(nmc)/float(ntot)
-        return eff, pur, nok
-        
-    
     

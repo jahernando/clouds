@@ -122,6 +122,32 @@ def get_features(bins, mask, cells, weights):
     return data
 
 
+def get_cloud_features(bins, mask, cells, weights):
+    
+    ndim  = len(cells)
+    
+    egrad, epath, edir = \
+        gradient_to_neighbour_direction(bins, mask, cells, weights)
+        
+    edge            =  edge_filter(bins, mask, cells, egrad, edir)
+    lap , neigh     = laplace(bins, mask, cells, weights)
+    lapt, _         = laplace_transverse(bins, mask, cells, weights, edir)
+    ridge           = ridge_filter(bins, mask, cells, weights, edir)
+
+    data = {}
+    data['cene']    = weights
+    data['cegrad']  = egrad
+    data['cepath']  = epath
+    data['cedge']   = edge
+    data['clap']    = lap
+    data['cneigh']  = neigh
+    data['clapt']   = lapt
+    data['cridge']  = ridge
+    for i in range(ndim):
+        data['cedir'+str(i)] = edir[:, i]
+
+    return data
+
 def get_cloud(bins, mask, cells, weights, condition = None):
     
     egrad, epath = gradient_to_neighbour(bins, mask, cells, weights,
@@ -405,6 +431,209 @@ def gradient_between_nodes(bins, mask, cells, weights, node,
     lpath = nn_kids     [mask]
     
     return lgrad, lpath
+
+
+def laplace(bins, mask, cells, weights):
+
+    ndim         = len(cells)
+    steps        = [ibin[1] - ibin[0] for ibin in bins]
+    vol = 1
+    for i in range(ndim): vol *= steps[i]
+    enes         = np.copy(weights)
+
+    potential, _ = np.histogramdd(cells, bins, weights = enes)
+    nn_potential = np.zeros(potential.shape)
+    nn_neigh     = np.zeros(potential.shape, dtype = int)
+
+    for move in moves(ndim):
+        if (np.sum(np.abs(move))) > 1: continue
+
+        coors_next        = [cells[i] + steps[i] * move[i] for i in range(ndim)]
+        potential_next, _ = np.histogramdd(coors_next, bins, weights = enes)
+
+        sel                = potential_next > 0.
+        nn_potential[sel] += potential_next[sel]
+        nn_neigh   [sel]  += 1
+
+    # should we divide by nn_neigh? (the average?)
+    div   =  (nn_potential - potential * nn_neigh)
+    #div[nn_neigh == 0] = 0
+    div   = div[mask]/(vol * ndim)
+    neig  = nn_neigh[mask]
+    
+    return div, neig
+
+
+def divergence(bins, mask, cells, egrad, edir):
+
+    ndim         = len(cells)
+    steps        = [ibin[1] - ibin[0] for ibin in bins]
+    vol = steps[0]
+    for istep in steps[1:]: vol += istep
+    vdir         = [edir[:, i] for i in range(ndim)]
+
+    coors_next   = [cells[i] + steps[i] * vdir[i] for i in range(ndim)]
+    pot_in, _    = np.histogramdd(coors_next, bins, weights = egrad)
+    
+    div   = (egrad - pot_in[mask])/vol
+    
+    return div
+
+
+def gradient_to_neighbour_direction(bins, mask, cells, weights):
+    
+    ndim, size   = len(cells), len(weights)
+    steps        = [ibin[1] - ibin[0] for ibin in bins]
+    enes         = np.copy(weights)
+    ids          = np.arange(size)
+    
+    potential, _ = np.histogramdd(cells, bins, weights = enes)
+    kid, _       = np.histogramdd(cells, bins, weights = ids)
+
+    nn_dir       = np.zeros(potential.shape + (ndim,))
+    nn_potential = np.copy(potential)
+    nn_kid       = np.copy(kid)
+    
+    #moves = get_moves_updown(ndim)
+    for move in moves(ndim):
+
+        coors_next         = [cells[i] + steps[i] * move[i] for i in range(ndim)]
+        potential_next, _  = np.histogramdd(coors_next, bins, weights = enes)
+        kid_next, _        = np.histogramdd(coors_next, bins, weights = ids)
+
+
+        sel_pot_next       = potential_next > nn_potential
+        sel                = (mask) & (sel_pot_next)
+        
+        nn_potential[sel]  = potential_next[sel]
+        nn_kid[sel]        = kid_next[sel]
+        for i in range(ndim):
+            nn_dir[sel, i] = -move[i]
+    
+
+    egrad = nn_potential[mask]
+    edir  = nn_dir[mask, :]
+    epath = nn_kid[mask]
+    
+    return egrad, epath, edir
+
+
+def laplace_transverse(bins, mask, cells, weights, edir):
+    
+    ndim         = len(cells)
+    steps        = [ibin[1] - ibin[0] for ibin in bins]
+    vol = 1
+    for i in range(ndim): vol *= steps[i]
+    enes         = np.copy(weights)
+    udir         = np.sqrt(np.sum(edir * edir, axis = 1))
+
+    potential, _ =  np.histogramdd(cells, bins, weights = enes)
+    direction    = [np.histogramdd(cells, bins, weights = edir[:, i])[0] \
+                    for i in range(ndim)]
+
+    #for i in range(ndim):          
+    #    print('dir ', i,  direction[i].T)
+
+    nn_potential = np.zeros(potential.shape)
+    nn_neigh     = np.zeros(potential.shape, dtype = int)
+
+    for move in moves(ndim):
+        coors_next        = [cells[i] + steps[i] * move[i] for i in range(ndim)]
+        potential_next, _ = np.histogramdd(coors_next, bins, weights = enes)
+
+        sel_pot           = potential_next > 0.
+        vdot              = np.zeros(potential.shape)
+        for i in range(ndim):
+            vdot += direction[i] * move[i]
+        sel_trans = np.isclose(vdot, 0)
+        
+        #print('move ', move);
+        #print('edir ', direction)
+        #print('vdot ', vdot.T)
+        #print('sel_trans ', sel_trans.T)
+        
+        sel = (mask) & (sel_pot) & (sel_trans)
+        
+        nn_potential[sel] += potential_next[sel]
+        nn_neigh   [sel]  += 1
+
+    div   = (nn_potential - potential * nn_neigh)
+    div   = div[mask]/(vol * ndim)
+    div   = div/udir
+    div[np.isclose(udir, 0)] = 0.
+    neig  = nn_neigh[mask]
+    
+    return div, neig
+
+
+def edge_filter(bins, mask, cells, egrad, edir):
+    
+    ndim         = len(cells)
+    steps        = [ibin[1] - ibin[0] for ibin in bins]
+
+    vgrad, _     =  np.histogramdd(cells, bins, weights = egrad)
+    vdir         = [edir[:, i] for i in range(ndim)]
+
+    cells_next   = [cells[i] + steps[i] * vdir[i] for i in range(ndim)]
+    vgrad_next,_ = np.histogramdd(cells_next, bins, weights = egrad)
+    sel          = vgrad_next > vgrad
+    
+    edge = sel[mask]
+    
+    return edge
+
+
+
+
+    # nn_edge      = np.full(potential.shape, True, dtype = bool)
+
+    # for move in moves(ndim):
+    #     coors_next        = [cells[i] + steps[i] * move[i] for i in range(ndim)]
+    #     potential_next, _ = np.histogramdd(coors_next, bins, weights = egrad)
+
+    #     sel_pot           = potential_next > potential
+    #     vdot              = np.zeros(potential.shape)
+    #     for i in range(ndim):
+    #         vdot += direction[i] * move[i]
+    #     sel_dir = ~np.isclose(vdot, 0)
+        
+    #     #print('move ', move);
+    #     #print('edir ', direction)
+    #     #print('vdot ', vdot.T)
+    #     #print('sel_trans ', sel_trans.T)
+        
+    #     sel = (mask) & (sel_pot) & (sel_dir)
+        
+    #     nn_edge     [sel]  = False
+
+    # edge  = nn_edge[mask]
+    
+    # return edge
+    
+
+def ridge_filter(bins, mask, cells, enes, edir, divt = None):
+    
+    ndim, size   = len(cells), len(cells[0])
+
+    divt = laplace_transverse(bins, mask, cells, enes, edir)[0] \
+        if divt is None else divt
+
+
+    ridge   = np.full(size, True, dtype = bool)
+
+    for move in moves(ndim):
+        if (np.sum(move) <= 0): continue
+        #print(move)
+        dmove = np.zeros((size, ndim), dtype = int)
+        for i in range(ndim):
+            dmove[:, i] = move[i]
+        #print(dmove.shape)
+        idivt, _ = laplace_transverse(bins, mask, cells, enes, dmove)
+
+        sel         = idivt < divt 
+        ridge[sel]  = False
+    
+    return ridge
 
 
 # def find_passes(node, lpath, condition = None):
