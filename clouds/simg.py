@@ -13,9 +13,10 @@ import numpy as np
 import functools
 import operator
    
+import clouds.filters as filters
+
 #import scipy.ndimage as ndimg     
 
-   
 def gradient(x : np.array, steps = None):
     """
     
@@ -125,13 +126,20 @@ def det_hessian(img, steps):
     return det
 
 
-def curvature(x      : np.array,
+def curvature(x     : np.array,
               edir  : np.array ,
               steps : tuple = None):
     
-    hess  = hessian(x, steps)
-    curv  = np.dot(np.dot(hess.T, edir), edir)/2
-
+    shape  = x.shape 
+    ndim   = x.ndim
+    hess   = hessian(x, steps)
+    curv   = np.zeros(shape)
+    for i in range(ndim):
+        for j in range(ndim):
+            curv += hess[i, j] * edir[i] * edir[j]
+    curv  /= 2
+    #xhess  = hess if edir.ndim > 1 else hess.T
+    #curv  = np.dot(np.dot(xhess, edir), edir)/2
     return curv  
 
 
@@ -195,7 +203,7 @@ def transverse_curvatures(x     : np.array,
     
     lap  = laplacian(x, steps)
     curv = curvature(x, edir, steps)
-    return lap - curv
+    return (lap - curv,)
 
 
 
@@ -233,7 +241,30 @@ def features(x     : np.array,
     return vgrad, lap, dhess, lmin
 
 
-# utilities 
+# filters
+#------------------------
+
+
+filters.gradient                 = gradient
+filters.laplacian                = laplacian
+filters.curvatures               = curvatures
+filters.min_curvature            = min_curvature
+filters.min_transverse_curvature = min_transverse_curvature
+filters.transverse_curvatures    = transverse_curvatures
+
+
+edge_filter          = filters.edge_filter
+ridge_filter         = filters.ridge_filter
+ridge_lambda_filter  = filters.ridge_lambda_filter
+node_filter          = filters.node_filter
+blob_filter          = filters.blob_filter
+normal_laplacian     = filters.normal_laplacian
+nlap_scan            = filters.nlap_scan
+
+
+#  internal functions
+#-----------------------
+
 
 
 def vector_in_spherical(v: np.array):
@@ -251,12 +282,6 @@ def vector_in_spherical(v: np.array):
     vg    = np.sqrt(vx * vx + vy * vy + vz * vz)
     return (vg, phi, theta)
             
-
-
-
-#  Inner functions
-#--------------------
-
 
 def _hess_eigen(x: np.array, steps = None):
     

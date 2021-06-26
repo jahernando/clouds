@@ -23,8 +23,8 @@ def edge_filter(img   : np.array,
                 steps : tuple = None, 
                 mask  : np.array = None,
                 math_condition  : bool = True,
-                perc  : float = 20,
-                atol  : float = 0.05):
+                perc  : float = 100,
+                atol  : float = 0.1):
     """
     Edge Filter.
 
@@ -79,43 +79,48 @@ def edge_filter(img   : np.array,
         sel2  = lvvv < 0 if math_condition else mask
         sel2 = (sel2) & np.isclose(lvv, 0, atol = atol)
     
+    #print('mask ', np.sum(mask))
+    #print('sel1 ', np.sum(sel1))
+    #print('sel2 ', np.sum(sel2))
     sel  = (mask) & (sel1) & (sel2)
     
     return sel, lv
          
 
-
-
 def ridge_filter(img        : np.array,
                  steps      : tuple = None,
                  mask       : np.array = None,
                  math_condition       : bool = True,
-                 perc       : float = 20,
+                 perc       : float = 100,
                  atol       : float = 0.05):
     
-    ndim  = img.ndim
     shape = img.shape
     mask  = np.full(shape, True) if mask is None else mask
 
     grad, gdir = gradient(img, steps) 
     curv, edir = min_transverse_curvature(img, steps)
 
-    # todo grad ane edir orthogonals
+    sel0 = curv < 0 if math_condition else mask
+    #print(' curv < 0', np.sum(sel0))
+    
     xsel = mask
+    #print('mask ', np.sum(mask))
     if (math_condition):
-        ls, _ = transverse_curvatures(img, steps, edir)
-        for i in range(ndim - 1):
-            xsel = (xsel) & (ls[i] < 0)
-        xsel = (xsel) & (np.abs(ls[-2]) > ls[-1])
+        ls = transverse_curvatures(img, edir, steps)
+        for li in ls:
+            xsel = (xsel) & (li < 0)
+        #print('sel li < 0 ', np.sum(xsel))
         cond = np.isclose(np.abs(np.sum(gdir * edir, axis = 0)), 1, atol = atol)
         xsel = (xsel) & (cond)
+        #print('sel orthogonal ', np.sum(cond) )
         
-    cut0 = np.percentile(curv[xsel].flatten(), perc)
+    cut0 = np.percentile(curv[mask].flatten(), perc)
     xfil = curv <= cut0
+    #print('perc ', np.sum(xfil))
     
     nfil = np.full(shape, False)
     
-    sel  = (mask) & (xsel) & (xfil)
+    sel  = (mask) & (sel0) & (xsel) & (xfil)
     nfil[sel] = True
     
     return nfil, curv
@@ -124,7 +129,7 @@ def ridge_filter(img        : np.array,
 def ridge_lambda_filter(img        : np.array,
                         steps      : tuple = None,
                         mask       : np.array = None,
-                        math_condition       : bool = False,
+                        math_condition       : bool = True,
                         perc       : float = 100,
                         atol       : float = 0.05):
         
@@ -136,24 +141,27 @@ def ridge_lambda_filter(img        : np.array,
     curv, edir = min_curvature(img, steps)
 
     # todo grad ane edir orthogonals
-    xsel = mask
+    xsel = (curv < 0)
     if (math_condition):
-        xsel = (xsel) & (curv < 0)
+        #xsel = (xsel) & (curv < 0)
         xsel = (xsel) & (np.isclose(np.sum(gdir * edir, axis = 0), 0, atol = atol))
         
-    cut0 = np.percentile(curv[xsel].flatten(), perc)
+    cut0 = np.percentile(curv[mask].flatten(), perc)
     xfil = curv <= cut0
     
     nfil = np.full(shape, False)
     
-    sel  = mask & xfil
+    #print('mask ', np.sum(mask))
+    #print('xsel ', np.sum(xsel))
+    #print('xfil ', np.sum(xsel))
+    sel  = (xsel) & (mask) & (xfil)
     nfil[sel] = True
     
     return nfil, curv
     
 
-def node_filter(x          : np.array, 
-                threshold  : float =  0):
+def node_filter(x     : np.array, 
+                mask  : np.array = None):
     """
     
     find the local maxima or nodes
@@ -171,12 +179,14 @@ def node_filter(x          : np.array,
     
     size = x.ndim * (3, )
     xm   = ndimg.maximum_filter(x, size = size)
-    xfil = (xm == x) & (x > threshold )
+    mask = np.full(x.shape, True) if mask is None else mask
+    xfil = (xm == x) & (mask)
     return xfil
 
 
 def blob_filter(x     : np.array,
-                steps : tuple = None):
+                steps : tuple = None,
+                mask  : np.array = None):
     """
     
     returns the local maxima of the minus laplacian
@@ -193,7 +203,7 @@ def blob_filter(x     : np.array,
     """
     
     lap = - laplacian(x, steps)
-    return node_filter(lap)
+    return node_filter(lap, mask = mask)
 
 
 def normal_laplacian(img   : np.array,

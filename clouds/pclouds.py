@@ -67,8 +67,8 @@ def voxels(img, bins = None, mask = None, **kargs):
     cells, enes = dclouds._scells(img, bins, mask)
     
     if (ndim == 2):
-        plt.gca().hist2d(*cells, bins = bins, weights = enes, **kargs)
-        #plt.colorbar(c);
+        plt.hist2d(*cells, bins = bins, weights = enes, **kargs)
+        plt.colorbar()
         return
 
     hist, _  = np.histogramdd(cells, bins = bins, weights = enes)

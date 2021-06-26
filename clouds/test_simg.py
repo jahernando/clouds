@@ -290,41 +290,102 @@ def test_features(nbins = 101,
     return
 
 #--- Filters
-
-# def test_node_filter(npoints = 2, sigma = 1):
     
-#     img, points = sources.points(npoints = npoints)
-#     simg        = ndimg.gaussian_filter(img, sigma) if sigma > 0 else img 
-    
-#     xfil        = simg.node_filter(simg)
-    
-#     img = img.astype(bool)
-    
-#     assert np.all(img == xfil), 'not good node filter'
+def test_edge_filter(nbins = 81, sigma = 4, atol = 5e-1):
     
 
-# def test_blob_filter(npoints = 2, sigma = 1):
-    
-#     img, points = sources.points(npoints = npoints)
-#     simg        = ndimg.gaussian_filter(img, sigma) if sigma > 0 else img 
-    
-#     xfil        = simg.blob_filter(simg)
-    
-#     img = img.astype(bool)
-    
-#     assert np.all(img == xfil), 'not good node filter'
-    
-    
-# def test_nlap_scan(npoints = 10, sigma = 1, maxradius = 10):
-    
-#     sigmas = np.linspace(0, 2 * maxradius, 40)
-    
-#     img, indices, radius = sources.disks(npoints = npoints, maxradius = maxradius)
-#     simg          = ndimg.gaussian_filter(img, sigma) if sigma >0 else img
-#     sigmax, _, _  = simg.nlap_scan(simg, sigmas = sigmas, filter = False)
+    img  = np.zeros((nbins, nbins))
+    n0  = int(nbins/2)
+    img[:, n0:] = 1
 
-#     radmu = [sigmax[index] for index in indices]
-#     rat   = np.array(radius)/np.array(radmu)
-#     print('mean ', np.mean(rat), 'std', np.std(rat))
-#     assert np.isclose(np.mean(rat), 1.8, atol = 2 * np.std(rat))
-#     return    
+    img =  ndimg.gaussian_filter(img, sigma)
+
+
+    for math in ('False', 'True'):
+        xfil, rv  = simg.edge_filter(img, math_condition = math, perc = 100, atol = 5e-1)
+        
+        xi = [x[1] for x in np.argwhere(xfil == True)]
+        print('mean ', np.mean(xi), n0)
+        assert np.isclose(np.mean(xi), n0, 1)
+        
+    return
+    
+
+def test_ridge_lambda_filter(nbins  = 81,
+                             ranges = ((0, 10), (0, 10)),
+                             y0     = 4):
+    
+    fun    = lambda x : x[0] - (x[1] - y0)**2
+
+    img, bins = sources.from_function(fun, nbins, ranges)
+    steps     = [bin[1] - bin[0] for bin in bins]
+
+    xfil, rv   = simg.ridge_lambda_filter(img, steps)
+
+    xi = [x[1] for x in np.argwhere(xfil == True)]
+    
+    print('ridge ', steps[1] * np.mean(xi), y0)
+    assert np.isclose(steps[1] * np.mean(xi), y0, atol = 5e-2), 'Not good ridge lambda'
+
+    return
+    
+
+def test_ridge_filter(nbins  = 81,
+                      ranges = ((0, 10), (0, 10)),
+                      y0     = 4):
+    
+    fun    = lambda x : x[0] - (x[1] - y0)**2
+
+    img, bins = sources.from_function(fun, nbins, ranges)
+    steps     = [bin[1] - bin[0] for bin in bins]
+
+    xfil, rv  = simg.ridge_filter(img, steps)
+
+    xi = [x[1] for x in np.argwhere(xfil == True)]
+    
+    print('ridge ', steps[1] * np.mean(xi), y0)
+    assert np.isclose(steps[1] * np.mean(xi), y0, atol = 5e-2), 'Not good ridge lambda'
+
+    return
+    
+
+def test_node_filter(npoints = 2, sigma = 1):
+    
+    img, points = sources.points(npoints = npoints)
+    ximg        = ndimg.gaussian_filter(img, sigma) if sigma > 0 else img 
+    mask        = ximg > 0
+    
+    xfil        = simg.node_filter(ximg, mask = mask)
+    
+    img = img.astype(bool)
+    
+    assert np.all(img == xfil), 'not good node filter'
+    
+
+def test_blob_filter(npoints = 2, sigma = 1):
+    
+    img, points = sources.points(npoints = npoints)
+    ximg        = ndimg.gaussian_filter(img, sigma) if sigma > 0 else img 
+    mask        = ximg > 0
+    
+    xfil        = simg.blob_filter(ximg, mask = mask)
+    
+    
+    img = img.astype(bool)
+    
+    assert np.all(img == xfil), 'not good node filter'
+    
+
+def test_nlap_scan(npoints = 10, sigma = 1, maxradius = 10):
+    
+    sigmas = np.linspace(0, 2 * maxradius, 40)
+    
+    img, indices, radius = sources.disks(npoints = npoints, maxradius = maxradius)
+    simg          = ndimg.gaussian_filter(img, sigma) if sigma >0 else img
+    sigmax, _, _  = simg.nlap_scan(simg, sigmas = sigmas, filter = False)
+
+    radmu = [sigmax[index] for index in indices]
+    rat   = np.array(radius)/np.array(radmu)
+    print('mean ', np.mean(rat), 'std', np.std(rat))
+    assert np.isclose(np.mean(rat), 1.8, atol = 2 * np.std(rat))
+    return    
