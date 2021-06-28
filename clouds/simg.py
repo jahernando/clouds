@@ -245,27 +245,20 @@ def features(x     : np.array,
 #------------------------
 
 
-filters.gradient                 = gradient
-filters.laplacian                = laplacian
-filters.curvatures               = curvatures
-filters.min_curvature            = min_curvature
-filters.min_transverse_curvature = min_transverse_curvature
-filters.transverse_curvatures    = transverse_curvatures
-
-
-edge_filter          = filters.edge_filter
-ridge_filter         = filters.ridge_filter
-ridge_lambda_filter  = filters.ridge_lambda_filter
+edge_filter          = filters.get_edge_filter(gradient)
+ridge_filter         = filters.get_ridge_filter(gradient, 
+                                                min_transverse_curvature,
+                                                transverse_curvatures)
+ridge_lambda_filter  = filters.get_ridge_lambda_filter(gradient,
+                                                       min_curvature)
 node_filter          = filters.node_filter
-blob_filter          = filters.blob_filter
-normal_laplacian     = filters.normal_laplacian
-nlap_scan            = filters.nlap_scan
+blob_filter          = filters.get_blob_filter(laplacian)
+normal_laplacian     = filters.get_normal_laplacian(curvatures)
+nlap_scan            = filters.get_nlap_scan(normal_laplacian)
 
 
 #  internal functions
 #-----------------------
-
-
 
 def vector_in_spherical(v: np.array):
     

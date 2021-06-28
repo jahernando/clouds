@@ -7,7 +7,6 @@ Created on Sat Jun 19 11:43:09 2021
 """
 
 import numpy         as np
-
 import scipy.ndimage as ndimg
 
 import clouds.utils     as cu
@@ -311,9 +310,10 @@ def test_edge_filter(nbins = 81, sigma = 4, atol = 5e-1):
     return
     
 
-def test_ridge_lambda_filter(nbins  = 81,
+def test_ridge_lambda_filter(nbins  = 101,
                              ranges = ((0, 10), (0, 10)),
-                             y0     = 4):
+                             y0     = 4,
+                             atol   = 5e-2):
     
     fun    = lambda x : x[0] - (x[1] - y0)**2
 
@@ -325,14 +325,15 @@ def test_ridge_lambda_filter(nbins  = 81,
     xi = [x[1] for x in np.argwhere(xfil == True)]
     
     print('ridge ', steps[1] * np.mean(xi), y0)
-    assert np.isclose(steps[1] * np.mean(xi), y0, atol = 5e-2), 'Not good ridge lambda'
+    assert np.isclose(steps[1] * np.mean(xi), y0, atol = atol), 'Not good ridge lambda'
 
     return
     
 
-def test_ridge_filter(nbins  = 81,
+def test_ridge_filter(nbins  = 101,
                       ranges = ((0, 10), (0, 10)),
-                      y0     = 4):
+                      y0     = 4,
+                      atol   = 5e-2):
     
     fun    = lambda x : x[0] - (x[1] - y0)**2
 
@@ -344,7 +345,7 @@ def test_ridge_filter(nbins  = 81,
     xi = [x[1] for x in np.argwhere(xfil == True)]
     
     print('ridge ', steps[1] * np.mean(xi), y0)
-    assert np.isclose(steps[1] * np.mean(xi), y0, atol = 5e-2), 'Not good ridge lambda'
+    assert np.isclose(steps[1] * np.mean(xi), y0, atol = atol), 'Not good ridge lambda'
 
     return
     
@@ -381,8 +382,8 @@ def test_nlap_scan(npoints = 10, sigma = 1, maxradius = 10):
     sigmas = np.linspace(0, 2 * maxradius, 40)
     
     img, indices, radius = sources.disks(npoints = npoints, maxradius = maxradius)
-    simg          = ndimg.gaussian_filter(img, sigma) if sigma >0 else img
-    sigmax, _, _  = simg.nlap_scan(simg, sigmas = sigmas, filter = False)
+    ximg          = ndimg.gaussian_filter(img, sigma) if sigma >0 else img
+    sigmax, _, _  = simg.nlap_scan(ximg, sigmas = sigmas, filter = False)
 
     radmu = [sigmax[index] for index in indices]
     rat   = np.array(radius)/np.array(radmu)
