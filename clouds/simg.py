@@ -197,13 +197,13 @@ def min_transverse_curvature(x: np.array,
     return curv, edir0
 
 
-def transverse_curvatures(x     : np.array,
-                          edir  : np.array,
-                          steps : tuple = None):
+# def transverse_curvatures(x     : np.array,
+#                           edir  : np.array,
+#                           steps : tuple = None):
     
-    lap  = laplacian(x, steps)
-    curv = curvature(x, edir, steps)
-    return (lap - curv,)
+#     lap  = laplacian(x, steps)
+#     curv = curvature(x, edir, steps)
+#     return (lap - curv,)
 
 
 
@@ -247,8 +247,7 @@ def features(x     : np.array,
 
 edge_filter          = filters.get_edge_filter(gradient)
 ridge_filter         = filters.get_ridge_filter(gradient, 
-                                                min_transverse_curvature,
-                                                transverse_curvatures)
+                                                min_transverse_curvature)
 ridge_lambda_filter  = filters.get_ridge_lambda_filter(gradient,
                                                        min_curvature)
 node_filter          = filters.node_filter

@@ -14,7 +14,7 @@ import scipy.ndimage as ndimg
 
 #import clouds.ridges as ridges
 import clouds.utils   as cu
-import clouds.sources as csources
+import clouds.sources as sources
 
 #import clouds.sclouds as sclouds
 import clouds.rimg    as rimg
@@ -28,8 +28,8 @@ def test_gradient(nbins  = 51,
                   tol    = 5e-2):
 
     ndim             = len(a)
-    fun, grad, hess  = csources.taylor(a0 = a0, a = a)
-    img, bins        = csources.from_function(fun, nbins, ranges)
+    fun, grad, hess  = sources.taylor(a0 = a0, a = a)
+    img, bins        = sources.from_function(fun, nbins, ranges)
     img             += 1 - np.min(img)
     steps            = cu.ut_steps(bins)
 
@@ -60,8 +60,8 @@ def test_curvature(nbins  = 51,
     assert len(ranges) == ndim, 'not valid number of ranges'
     
     ndim          = len(b)
-    fun, _, hess  = csources.taylor(b = b, c = c)
-    img, bins     = csources.from_function(fun, nbins, ranges)
+    fun, _, hess  = sources.taylor(b = b, c = c)
+    img, bins     = sources.from_function(fun, nbins, ranges)
     img          +=  1 - np.min(img) 
     steps         = cu.ut_steps(bins)
     center = tuple([[nborder, -nborder] for i in range(ndim)])
@@ -86,8 +86,8 @@ def test_curvatures(nbins   = 51,
     assert len(ranges) == ndim, 'not valid number of ranges'
     
     ndim          = len(b)
-    fun, _, hess  = csources.taylor(b = b, c = c)
-    img, bins     = csources.from_function(fun, nbins, ranges)
+    fun, _, hess  = sources.taylor(b = b, c = c)
+    img, bins     = sources.from_function(fun, nbins, ranges)
     img          +=  1 - np.min(img) 
     steps         = cu.ut_steps(bins)
     center = tuple([[nborder, -nborder] for i in range(ndim)])
@@ -115,8 +115,8 @@ def test_laplacian(nbins   = 51,
     assert len(ranges) == ndim, 'not valid number of ranges'
     
     ndim          = len(b)
-    fun, _, hess  = csources.taylor(b = b, c = c)
-    img, bins     = csources.from_function(fun, nbins, ranges)
+    fun, _, hess  = sources.taylor(b = b, c = c)
+    img, bins     = sources.from_function(fun, nbins, ranges)
     img          +=  1 - np.min(img) 
     steps         = cu.ut_steps(bins)
     center = tuple([[nborder, -nborder] for i in range(ndim)])
@@ -140,18 +140,18 @@ def test_min_curvature(nbins  = 51,
     assert len(ranges) == ndim, 'not valid number of ranges'
     
     ndim          = len(b)
-    fun, _, hess  = csources.taylor(b = b, c = c)
-    img, bins     = csources.from_function(fun, nbins, ranges)
+    fun, _, hess  = sources.taylor(b = b, c = c)
+    img, bins     = sources.from_function(fun, nbins, ranges)
     img          +=  1 - np.min(img) 
     steps         = cu.ut_steps(bins)
     center = tuple([[nborder, -nborder] for i in range(ndim)])
 
     curv0, edir0 = _dcurv_min(hess, steps)
     curv , edir  = rimg.min_curvature(img, steps)
+    
     print(' curv0 ', curv0, ', min curv ', np.mean(curv[center]))
     assert np.isclose(np.mean(curv[center]), curv0, atol = tol), \
         ' not good min curvature' 
-
     for i in range(ndim):
         print(' i-coor ', i, ' edir ', edir0[i], np.mean(edir[i][center]))
         assert np.isclose(np.mean(edir[i][center]), edir0[i], atol = tol), \
@@ -171,8 +171,8 @@ def test_transverse_curvature(nbins  = 101,
     assert len(ranges) == ndim, 'not valid number of ranges'
     
     ndim          = len(b)
-    fun, _, hess  = csources.taylor(b = b, c = c)
-    img, bins     = csources.from_function(fun, nbins, ranges)
+    fun, _, hess  = sources.taylor(b = b, c = c)
+    img, bins     = sources.from_function(fun, nbins, ranges)
     img          +=  1 - np.min(img) 
     steps         = cu.ut_steps(bins)
     center = tuple([[nborder, -nborder] for i in range(ndim)])
@@ -187,42 +187,162 @@ def test_transverse_curvature(nbins  = 101,
     return
 
 
-def test_min_transverse_curvature():
+def test_min_transverse_curvature(nbins  = 101,
+                                  ranges  = ((-1, 1), (-1, 1)),
+                                  b       = (-1, 1),
+                                  c       = (0,),
+                                  tol     = 5e-2):
     
-    assert False
+    ndim          = len(b)  
+    assert len(ranges) == ndim, 'not valid number of ranges'
     
-    
-def transverse_curvatures():
-    
-    assert False
+    ndim          = len(b)
+    fun, _, hess  = sources.taylor(b = b, c = c)
+    img, bins     = sources.from_function(fun, nbins, ranges)
+    img          +=  1 - np.min(img) 
+    steps         = cu.ut_steps(bins)
+    center = tuple([[nborder, -nborder] for i in range(ndim)])
 
+
+    curv0, edir0 = _dcurv_trans_min(hess, steps)
+    curv , edir  = rimg.min_transverse_curvature(img, steps)
+    
+    print(' curv0 ', curv0, ', min curv ', np.mean(curv[center]))
+    assert np.isclose(np.mean(curv[center]), curv0, atol = tol), \
+        ' not good min trans curvature' 
+    for i in range(ndim):
+        print(' i-coor ', i, ' edir ', edir0[i], np.mean(edir[i][center]))
+        assert np.isclose(np.mean(edir[i][center]), edir0[i], atol = tol), \
+                ' not good min trans curvature dir ' + str(i) 
+    
+    return
+    
+#
+#  Test filters
+#
         
+def test_edge_filter(nbins = 81, sigma = 4, atol = 5e-1):
+    
+
+    img  = np.zeros((nbins, nbins))
+    n0  = int(nbins/2)
+    img[:, n0:] = 1
+
+    img =  ndimg.gaussian_filter(img, sigma)
+
+
+    for math in ('False', 'True'):
+        xfil, rv  = rimg.edge_filter(img, math_condition = math,
+                                     perc = 100, atol = atol)
+        
+        xi = [x[1] for x in np.argwhere(xfil == True)]
+        print('edge: mean ', np.mean(xi), n0)
+        assert np.isclose(np.mean(xi), n0, 1)
+        
+    return
+    
+
+def test_ridge_lambda_filter(nbins  = 101,
+                              ranges = ((0, 10), (0, 10)),
+                              y0     = 4,
+                              atol   = 5e-2):
+    
+    fun    = lambda x : x[0] - (x[1] - y0)**2
+
+    img, bins = sources.from_function(fun, nbins, ranges)
+    steps     = [bin[1] - bin[0] for bin in bins]
+    xmesh     = cu.ut_mesh(bins)
+
+    xfil, rv   = rimg.ridge_lambda_filter(img, steps)
+
+    ndim = img.ndim
+    sel = np.full(xfil.shape, True)
+    for i in range(ndim):
+        sel = (sel) & (xmesh[i] > bins[i][nborder]) & (xmesh[i] < bins[i][-nborder])
+
+    ys = xmesh[1][sel & xfil]
+    
+    print('ridge lambda : ', np.mean(ys), y0)
+    assert np.isclose(np.mean(ys), y0, atol = atol), \
+        'Not good ridge lambda'    
+
+    return
+    
+
+def test_ridge_filter(nbins  = 101,
+                      ranges = ((0, 10), (0, 10)),
+                      y0     = 4,
+                      atol   = 5e-2):
+    
+    fun    = lambda x : x[0] - (x[1] - y0)**2
+
+    img, bins = sources.from_function(fun, nbins, ranges)
+    steps     = [bin[1] - bin[0] for bin in bins]
+    xmesh     = cu.ut_mesh(bins)
+
+    xfil, rv  = rimg.ridge_filter(img, steps)
+
+    ndim = img.ndim
+    sel = np.full(xfil.shape, True)
+    for i in range(ndim):
+        sel = (sel) & (xmesh[i] > bins[i][nborder]) & (xmesh[i] < bins[i][-nborder])
+
+    ys = xmesh[1][sel & xfil]
+    
+    print('ridge : ', np.mean(ys), y0)
+    assert np.isclose(np.mean(ys), y0, atol = atol), \
+        'Not good ridge'
+
+    return
+    
+
 def test_node_filter(npoints = 2, sigma = 1):
     
-    img, points = csources.points(npoints = npoints)
-    simg        = ndimg.gaussian_filter(img, sigma) if sigma > 0 else img 
-    mask        = simg > 0
-    xfil        = dclouds.node_filter(simg, mask = mask)
+    img, points = sources.points(npoints = npoints)
+    ximg        = ndimg.gaussian_filter(img, sigma) if sigma > 0 else img 
+    mask        = ximg > 0
+    
+    xfil        = rimg.node_filter(ximg, mask = mask)
     
     img = img.astype(bool)
     
+    print('node filter :', npoints, np.sum(xfil))
+
     assert np.all(img == xfil), 'not good node filter'
     
 
-def test_blob_filter(npoints = 1, sigma = 1):
+def test_blob_filter(npoints = 2, sigma = 1):
     
-    img, points = csources.points(npoints = npoints)
-    simg        = ndimg.gaussian_filter(img, sigma) if sigma > 0 else img 
+    img, points = sources.points(npoints = npoints)
+    ximg        = ndimg.gaussian_filter(img, sigma) if sigma > 0 else img 
+    mask        = ximg > 0
     
-    xfil        = rimg.blob_filter(simg)
-
+    xfil        = rimg.blob_filter(ximg, mask = mask)
+    
     img = img.astype(bool)
     
-    assert np.all(img == xfil), 'not good node filter'
+    print('blob filter :', npoints, np.sum(xfil))
+    assert np.all(img == xfil), 'not good blob filter'
     
+
+def test_nlap_scan(npoints = 10, sigma = 1, maxradius = 10):
+    
+    sigmas = np.linspace(0, 2 * maxradius, 40)
+    
+    img, indices, radius = sources.disks(npoints = npoints, maxradius = maxradius)
+    ximg          = ndimg.gaussian_filter(img, sigma) if sigma >0 else img
+    sigmax, _, _  = rimg.nlap_scan(ximg, sigmas = sigmas, filter = False)
+
+    radmu = [sigmax[index] for index in indices]
+    rat   = np.array(radius)/np.array(radmu)
+    print('nlap scal: nmean ', np.mean(rat), 'std', np.std(rat))
+    assert np.isclose(np.mean(rat), 1.8, atol = 2 * np.std(rat))
+    return    
+
         
-
-#---- Internal math
+#
+#  Internal functions
+#
     
 def _dgrad(a, steps = None):
     """
@@ -300,6 +420,22 @@ def _dcurv_min(hess, steps = None):
         icur = _dcurv(hess, move, steps)
         if (icur < mcurv):
             mcurv = icur
+            mdir  = move
+    
+    return mcurv, mdir
+
+
+def _dcurv_trans_min(hess, steps = None):
+
+    ndim  = hess.shape[0]
+    moves = rimg.moves_face(ndim)
+
+    mcurv = 0
+    mdir  = np.zeros(ndim)
+    for move in moves:
+        curv = _dcurv_trans(hess, move, steps = steps)
+        if (curv < mcurv):
+            mcurv = curv
             mdir  = move
     
     return mcurv, mdir

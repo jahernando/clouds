@@ -283,41 +283,38 @@ def min_transverse_curvature(img, steps = None, mask = None):
     return ncurv, ndir
 
 
-def transverse_curvatures(img, edir, steps = None, mask = None): 
+# def transverse_curvatures(img, edir, steps = None, mask = None): 
     
-    mask = np.full(img.shape, True) if mask is None else mask
+#     mask = np.full(img.shape, True) if mask is None else mask
 
-    bins, cells, enes = _cells(img, steps, mask = mask)
+#     bins, cells, enes = _cells(img, steps, mask = mask)
 
-    curvs = _transverse_curvatures(bins, mask, cells, enes, edir)
+#     curvs = _transverse_curvatures(bins, mask, cells, enes, edir)
     
-    ncurvs = []
-    for curv in curvs:
-        ncurv = np.zeros(img.shape)
-        ncurv[mask] = curv
-        ncurvs.append(ncurv)
+#     ncurvs = []
+#     for curv in curvs:
+#         ncurv = np.zeros(img.shape)
+#         ncurv[mask] = curv
+#         ncurvs.append(ncurv)
 
-    return ncurvs
+#     return ncurvs
 
-    return
-
-
+#     return
 
 
 # filters
 #------------------------
 
+edge_filter          = filters.get_edge_filter(gradient)
+ridge_filter         = filters.get_ridge_filter(gradient, 
+                                                min_transverse_curvature)
+ridge_lambda_filter  = filters.get_ridge_lambda_filter(gradient,
+                                                       min_curvature)
+node_filter          = filters.node_filter
+blob_filter          = filters.get_blob_filter(laplacian)
+normal_laplacian     = filters.get_normal_laplacian(curvatures)
+nlap_scan            = filters.get_nlap_scan(normal_laplacian)
 
-#edge_filter          = filters.get_edge_filter(gradient)
-#ridge_filter         = filters.get_ridge_filter(gradient, 
-#                                                min_transverse_curvature,
-#                                                transverse_curvatures)
-#ridge_lambda_filter  = filters.get_ridge_lambda_filter(gradient,
-#                                                       min_curvature)
-#node_filter          = filters.node_filter
-#blob_filter          = filters.get_blob_filter(laplacian)
-#normal_laplacian     = filters.get_normal_laplacian(curvatures)
-#nlap_scan            = filters.get_nlap_scan(normal_laplacian)
 
 #----- internal
 
@@ -526,7 +523,7 @@ def _curvatures(bins, mask, cells, enes, extended = False):
     
     ndim  = len(cells)
     moves = moves_face(ndim) if extended else moves_axis(ndim)
-    print(extended, len(moves))
+    #print(extended, len(moves))
     curvs = [_curvature(bins, mask, cells, enes, move) for move in moves]
     return curvs
 
@@ -614,7 +611,6 @@ def _min_curvature(bins, mask, cells, enes):
     return mincurve, edir
 
 
-
 def _transverse_curvature(bins, mask, cells, enes,  edir):
     
     ndim, size = len(cells), len(cells[0])
@@ -668,31 +664,31 @@ def _min_transverse_curvature(bins, mask, cells, enes):
     return mincurve, edir
 
 
-def _transverse_curvatures(bins, mask, cells, enes, edir):
+# def _transverse_curvatures(bins, mask, cells, enes, edir):
     
-    #TOTHINK
-    ndim, size = len(cells), len(cells[0])
-    edir      = edir * np.ones ((size, ndim)) if (edir.ndim == 1) else edir
-    direction = [np.histogramdd(cells, bins, weights = edir[:, i])[0] \
-                 for i in range(ndim)]
-    shape     = direction[0].shape
+#     #TOTHINK
+#     ndim, size = len(cells), len(cells[0])
+#     edir      = edir * np.ones ((size, ndim)) if (edir.ndim == 1) else edir
+#     direction = [np.histogramdd(cells, bins, weights = edir[:, i])[0] \
+#                  for i in range(ndim)]
+#     shape     = direction[0].shape
     
-    curvs = []        
-    for move in moves_face(ndim):
-        curv      = np.zeros(size)    
-        vdot      = np.zeros(shape)
-        for i in range(ndim): vdot += direction[i] * move[i]
-        sel_orth  = np.isclose(vdot, 0)
+#     curvs = []        
+#     for move in moves_face(ndim):
+#         curv      = np.zeros(size)    
+#         vdot      = np.zeros(shape)
+#         for i in range(ndim): vdot += direction[i] * move[i]
+#         sel_orth  = np.isclose(vdot, 0)
 
-        mcurve    = _curvature(bins, mask, cells, enes, move)
+#         mcurve    = _curvature(bins, mask, cells, enes, move)
 
-        sel       = (mask) & (sel_orth)
-        sel       = sel.flatten()
-        if (np.sum(sel) > 0):
-            curv[sel] += mcurve[sel]
-        curvs.append(curv)
+#         sel       = (mask) & (sel_orth)
+#         sel       = sel.flatten()
+#         if (np.sum(sel) > 0):
+#             curv[sel] += mcurve[sel]
+#         curvs.append(curv)
         
-    return curvs
+#     return curvs
 
     
 

@@ -84,46 +84,66 @@ def get_edge_filter(gradient):
     return edge_filter
 
 
-def get_ridge_filter(gradient, min_transverse_curvature, transverse_curvatures):
+def get_ridge_filter(gradient, min_transverse_curvature):
     
     gradient                 = gradient
     min_transverse_curvature = min_transverse_curvature
-    transverse_curvatures    = transverse_curvatures
 
     def ridge_filter(img        : np.array,
-                     steps      : tuple = None,
-                     mask       : np.array = None,
-                     math_condition       : bool = True,
-                     perc       : float = 100,
-                     atol       : float = 0.05):
+                      steps      : tuple = None,
+                      mask       : np.array = None,
+                      math_condition       : bool = True,
+                      perc       : float = 100,
+                      atol       : float = 0.05):
+        """
+        
+        Ridge filter:
+
+        A ridge requires:
+            * the transverse minimum curvature must be negative
+            * the gradient direction is aligned with the normal to the minimum
+            curvature transverse
+
+        Parameters
+        ----------
+        img : np.array
+        steps : tuple, optional
+        mask : np.array, optional
+        math_condition : bool, optional. Default is True
+        perc : float, optional. The default is 100.
+        atol : float, optional. The default is 0.05.
+
+        Returns
+        -------
+        nfil : np.array, filter
+        curv : np.array, value of the minimum transverse curvature
+
+        """
         
         shape = img.shape
         mask  = np.full(shape, True) if mask is None else mask
     
         grad, gdir = gradient(img, steps) 
         curv, edir = min_transverse_curvature(img, steps)
-    
-        sel0 = curv < 0 if math_condition else mask
-        #print(' curv < 0', np.sum(sel0))
-        
-        xsel = mask
-        #print('mask ', np.sum(mask))
-        if (math_condition):
-            ls = transverse_curvatures(img, edir, steps)
-            for li in ls:
-                xsel = (xsel) & (li < 0)
-            #print('sel li < 0 ', np.sum(xsel))
-            cond = np.isclose(np.abs(np.sum(gdir * edir, axis = 0)), 1, atol = atol)
-            xsel = (xsel) & (cond)
-            #print('sel orthogonal ', np.sum(cond) )
             
+        xsel = curv < 0
+        #print('curv neg ', np.sum(xsel))
+        if (math_condition):
+            # edir and gdir maybe not unitary
+            gmod  = np.sqrt(np.sum(gdir * gdir, axis = 0))
+            cmod  = np.sqrt(np.sum(edir * edir, axis = 0))
+            vmod  = gmod * cmod
+            cond = np.isclose(np.abs(np.sum(gdir * edir, axis = 0)), vmod, atol = atol)
+            xsel = (xsel) & (cond)
+        #print('orthog ', np.sum(xsel))
+                   
         cut0 = np.percentile(curv[mask].flatten(), perc)
         xfil = curv <= cut0
         #print('perc ', np.sum(xfil))
         
         nfil = np.full(shape, False)
         
-        sel  = (mask) & (sel0) & (xsel) & (xfil)
+        sel  = (mask) & (xsel) & (xfil)
         nfil[sel] = True
         
         return nfil, curv
@@ -142,6 +162,29 @@ def get_ridge_lambda_filter(gradient, min_curvature):
                             math_condition       : bool = True,
                             perc       : float = 100,
                             atol       : float = 0.05):
+        """
+        
+        A Ridge simplified filter
+        
+        Requires:
+            * The minimum curvature must be negative
+            * the direction of the minimum curvature must be orthogonal to the gradient
+
+        Parameters
+        ----------
+        img : np.array
+        steps : tuple, optional
+        mask : np.array, optional. The default is None.
+        math_condition : bool, optional. The default is True.
+        perc : float, optional. The default is 100.
+        atol : float, optional. The default is 0.05.
+
+        Returns
+        -------
+        nfil : np.array, filter
+        curv : np.array, value of the minimum curvature
+
+        """
             
         
         shape = img.shape
@@ -149,11 +192,9 @@ def get_ridge_lambda_filter(gradient, min_curvature):
     
         grad, gdir = gradient(img, steps) 
         curv, edir = min_curvature(img, steps)
-    
-        # todo grad ane edir orthogonals
+        
         xsel = (curv < 0)
         if (math_condition):
-            #xsel = (xsel) & (curv < 0)
             xsel = (xsel) & (np.isclose(np.sum(gdir * edir, axis = 0), 0, atol = atol))
             
         cut0 = np.percentile(curv[mask].flatten(), perc)
