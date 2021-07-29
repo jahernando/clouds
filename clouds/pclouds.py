@@ -21,8 +21,16 @@ from   mpl_toolkits.mplot3d import axes3d
 plt.rcParams['image.cmap'] = 'rainbow'
 
 fig  = lambda nx = 1, ny = 1, sz = 4: plt.figure(figsize = (sz * ny,  sz * nx))
-ax3d = lambda nx = 1, ny = 1, i = 1 : plt.gcf().add_subplot(nx, ny, i, projection = '3d')
-efig = plt.tight_layout
+
+def ax(nx = 1, ny = 1, i = 1, ndim = 2):
+    if (ndim == 3):
+        plt.gcf().add_subplot(nx, ny, i, projection = '3d')
+    else: 
+        plt.subplot(nx, ny, i)
+    return
+
+efig  = plt.tight_layout
+title = plt.title
 #cells_select = clouds.cells_select
 hopts        = {'histtype': 'step'}
 
@@ -46,13 +54,17 @@ def scatter(img, bins = None, mask = None, **kargs):
     ax = plt.gca(projection = '3d') if ndim == 3 else plt.gca()
 
     bins = dclouds._bins(img)       if bins is None else bins
+    
+    if (img.dtype == bool):
+        mask = img == True if mask is None else mask
     mask = np.full(img.shape, True) if mask is None else mask
        
-    mask = img > 0 if mask is None else mask
     cells, enes = dclouds._scells(img, bins, mask)
-    scale = cu.ut_scale(enes)
-    ax.scatter(*cells, c = scale, **kargs)
-    
+    if (enes.dtype == bool):
+        ax.scatter(*cells, **kargs)
+    else:
+        scale = cu.ut_scale(enes)
+        ax.scatter(*cells, c = scale, **kargs)
     return ax
 
 
@@ -78,6 +90,7 @@ def voxels(img, bins = None, mask = None, **kargs):
     #filled     = np.swapaxes(umask, 0, 1).astype(bool)
 
     alpha = kargs['alpha'] if 'alpha' in kargs.keys() else 0.1
+    kargs['alpha'] = alpha
     cols  = to_color(hist, alpha)
  
     plt.gca(projection = '3d')

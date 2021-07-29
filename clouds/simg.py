@@ -289,10 +289,12 @@ def _hess_eigen(x: np.array, steps = None):
     vhess      = _rev_matrix(hess)
     
     leig, eeig = np.linalg.eigh(vhess)
+   
     
     ls   = [leig[..., i] for i in range(ndim)]
-    xeis = [_rev_matrix(eeig[..., i]) for i in range(ndim)]
+    xeis = [_back_vector(eeig[..., i]) for i in range(ndim)]
  
+    
     return ls, xeis
 
 
@@ -306,6 +308,17 @@ def _rev_matrix(h):
         for j in range(ndim):
             hrev[..., i, j] = h[i, j]
     return hrev
+
+def _back_vector(v):
+    
+    ndim  = v.shape[-1]
+    shape = v.shape[:-1]
+    
+    bv  = np.zeros((ndim,) + shape)
+    for i in range(ndim):
+            bv[i] = v[..., i]
+    return bv
+
 
 
 def _laplacian(hess):

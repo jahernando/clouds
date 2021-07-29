@@ -12,7 +12,8 @@ Created on Tue Apr 27 15:24:01 2021
 import numpy as np
 import functools
 import operator
-        
+   
+import scipy.ndimage as ndimg     
         
 def edge_filter(x: np.array, steps = None, 
                 perc = 20, require_curvature = True,
@@ -229,6 +230,48 @@ def laplacian(hess):
                             [hess[..., i, i] for i in range(ndim)])
     return lap
 
+
+def normal_laplacian(img, sigma = 1, steps = None):
+    
+    # TODO! gaussian in steps!!
+    steps  = np.ones(img.ndim) if steps is None else np.array(steps)
+    sigmas = sigma / steps
+    #print(sigmas)
+    simg   = ndimg.gaussian_filter(img, sigmas)
+    #lap  = sigma * ndimg.laplace(simg)
+    hess   = hessian(simg, steps)
+    lap    = sigma * laplacian(hess)
+    return lap
+
+
+def blob_filter(img, ipoints, sigmas = (1,), steps = None):
+
+    npoints = len(ipoints[0])
+    #print(npoints)
+    indices = [tuple([xip[i] for xip in ipoints]) for i in range(npoints)]
+    #print('shape ', img.shape)
+    #print('indices ', indices)
+    
+    nlaps = {}
+    for i in range(npoints): nlaps[i] = []
+    for sigma in sigmas:
+        nlap     = - normal_laplacian(img, sigma, steps)
+        #print('nlap shape ', nlap.shape)
+        for i in range(npoints):
+            index = indices[i]
+            #print('index ', i, index)
+            ilap = nlap[index]
+            #print('index', index, 'ilap ', ilap)
+            nlaps[i].append(ilap)
+    
+    #print(nlaps)
+    msigmas = npoints * [0]
+    for i in range(npoints):
+        vals = sorted(zip(nlaps[i], sigmas))
+        msigmas[i] = vals[-1][1]
+    msigmas = 1.8 * np.array(msigmas)
+    
+    return msigmas, nlaps
 
 
 # def edge_filter(x: np.array, steps = None, mask = None, 

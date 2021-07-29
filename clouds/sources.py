@@ -22,8 +22,7 @@ def taylor(a0 = 0, a = (0, 0), b = (0, 0), c = (0,)):
     assert ok, 'not valid number of c coeficients'
     
     grad = np.array(a)
-    
-    hess    = np.zeros((ndim, ndim))
+    hess = np.zeros((ndim, ndim))
     k= 0
     for i in range(ndim):
         for j in range(i+1, ndim):
@@ -33,11 +32,11 @@ def taylor(a0 = 0, a = (0, 0), b = (0, 0), c = (0,)):
     for i, bi in enumerate(b): hess[i, i] = bi
         
     def fun(x):
-        y  = a0
+        y  = a0 + x[0] * 0
         for i in range(ndim):
             y += grad[i] * x[i]
             y += hess[i, i] * x[i] * x[i]/2
-            for j in range(i+1, ndim):
+            for j in range(i + 1, ndim):
                 y += hess[i, j] * x[i] * x[j]
         return y
     
@@ -51,9 +50,9 @@ def from_function(fun, nbins, ranges):
 
     Parameters
     ----------
+    fun    : function(x, y, z)
     nbins  : int or tuple(int), number of bins
     ranges : tuple( (a, b)), range in each axis
-    fun    : function(x, y, z)
 
     Returns
     -------
@@ -66,10 +65,15 @@ def from_function(fun, nbins, ranges):
     nbins  = size *(nbins,) if type(nbins) == int else nbins
     bins   = [np.linspace(*range, nbin +1) 
               for nbin, range in zip(nbins, ranges)]
+    
+    #print('size  ', size)
+    #print('nbins ', nbins)
+    #print('bins  ', bins)
 
     xmesh  = cu.ut_mesh(bins)
+    #print(len(xmesh), xmesh[0].shape)
     zs     = fun(xmesh)
-    
+    #print(zs)
     return zs, bins
 
 
@@ -87,9 +91,9 @@ def from_histogram(coors   : np.array,
 
 def points(npixels = 50,
            npoints = 5,
-           ndim = 2):
+           ndim    = 2):
     
-    img    = np.zeros(ndim*(npixels,))
+    img    = np.zeros(ndim * (npixels,) )
     indices = [np.random.choice(range(npixels), ndim) for i in range(npoints)]
     indices = [tuple(index) for index in indices]
     for index in indices:

@@ -129,7 +129,8 @@ def run(nfiles = 100, steps = (10, 10, 4)):
             idf['file']  = i
             idf['event'] = event            
             dfs.append(idf)
-            idat = ana_mc_img_filters(bins, mask, cells, idf)
+            #idat = ana_mc_img_filters(bins, mask, cells, idf)
+            idat = ana_mc_cloud_filters(bins, mask, cells, idf)
             for key in idat.keys():
                 if key not in odata.keys(): odata[key] = []
                 odata[key].append(idat[key])
@@ -231,6 +232,28 @@ def _ana_mc_filter(sel, dft, mask):
     data['nodes-extr'] = _roc_in(xnodes, nodesmcextr)
     return data    
 
+def _ana_mc_filter_(sel, dft):
+
+    mc     = dft.mc.values      == True
+    mcextr = dft.mceextr.values == 1
+
+    data = {}
+    data['cells'] = _roc(sel, mc)
+    data['cells-extr']  = _roc(sel, mcextr)
+    
+    node        = dft.enode.values
+    nodesmc     = np.unique(node[mc])
+    nodesmcextr = np.unique(node[mcextr])
+    xnodes      = np.unique(node[sel])
+    #print('xnodes ' , xnodes)
+    #print('nodesmc ', nodesmc)
+    #print('nodexmcextr', nodesmcextr)
+
+    data['nodes'] = _roc_in(xnodes, nodesmc)
+    data['nodes-extr'] = _roc_in(xnodes, nodesmcextr)
+    return data    
+
+
 
 def ana_mc_img_filters(bins, mask, cells, df):
 
@@ -291,6 +314,58 @@ def ana_mc_img_filters(bins, mask, cells, df):
     return odata
 
 
+
+def ana_mc_cloud_filters(bins, mask, cells, df):
+
+    enes  = df.energy.values
+    features = clouds.get_cloud_features(bins, mask, cells, enes)
+    
+    enes  = features['cene']
+    vgrad = features['cegrad']
+    lap   = features['clap']
+    lapt  = features['clapt']
+    edge  = features['cedge']
+    ridge = features['cridge']
+
+    
+    def _fill(idat, label):
+        for i, key in enumerate(('eff', 'pur', 'nsel', 'ntrue', 'ntot')):
+            odata[label + '.' + key] = idat[i]
+
+
+    filters = {}
+    filters['ene.40']   = (enes  >= np.percentile(enes  , 40))
+    filters['vgrad.40'] = (vgrad >= np.percentile(vgrad , 40))
+    filters['lap.60']   = (lap   <= np.percentile(lap   , 60))
+    filters['lapt.60']  = (lapt  <= np.percentile(lapt  , 60))
+    
+    filters['ene.90']   = (enes   >= np.percentile(enes , 90))
+    filters['vgrad.90'] = (vgrad >= np.percentile(vgrad , 90))
+    filters['lap.10']   = (lap   <= np.percentile(lap   , 10))
+    filters['lapt.10']  = (lapt  <= np.percentile(lapt  , 10))
+
+    filters['edge']     = edge
+    filters['ridge']    = ridge
+
+
+    odata = {}
+    for key in filters.keys():
+        data = _ana_mc_filter_( filters[key], df)
+        for name in ('cells', 'nodes', 'nodes-extr'):
+            _fill(data[name], name + '.' +key)
+
+    vars = {}
+    vars['ene']   = enes
+    vars['vgrad'] = vgrad
+    vars['lap']   = -lap
+    vars['lapt']  = -lapt
+    for key in vars.keys():
+        ipos = _ipos_in(vars[key], df)
+        for i, ip in enumerate(ipos):
+            odata[key +'.extr'+str(i)] = int(ip) 
+
+    return odata
+
 #
 #   Plotting
 #
@@ -333,5 +408,6 @@ def get_drawer(cells):
                               c = col, s = siz, **kargs)
             plt.xlabel('x'); plt.ylabel('y'); 
     return _plot   
+
 
     

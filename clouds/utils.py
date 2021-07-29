@@ -15,6 +15,7 @@ import numpy as np
 
 def ut_fscale(values, a = 0, b = 1):
     
+    values = values.astype(int) if values.dtype == bool else values
     xmin, xmax = np.min(values), np.max(values)
     def _fun(val):
         scale  = (val - xmin)/(xmax - xmin)
@@ -24,6 +25,7 @@ def ut_fscale(values, a = 0, b = 1):
 
 def ut_scale(values, a = 0, b = 1):
    
+    values = values.astype(int) if values.dtype == bool else values
     xmin, xmax = np.min(values), np.max(values)
     scale  = (values - xmin)/(xmax - xmin)
     return scale

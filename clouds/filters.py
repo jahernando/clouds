@@ -125,7 +125,10 @@ def get_ridge_filter(gradient, min_transverse_curvature):
     
         grad, gdir = gradient(img, steps) 
         curv, edir = min_transverse_curvature(img, steps)
-            
+        
+        #print('grad ', grad.shape, 'gdir ', gdir.shape)
+        #print('curv ', grad.shape, 'edir ', edir.shape)
+
         xsel = curv < 0
         #print('curv neg ', np.sum(xsel))
         if (math_condition):
@@ -133,7 +136,11 @@ def get_ridge_filter(gradient, min_transverse_curvature):
             gmod  = np.sqrt(np.sum(gdir * gdir, axis = 0))
             cmod  = np.sqrt(np.sum(edir * edir, axis = 0))
             vmod  = gmod * cmod
-            cond = np.isclose(np.abs(np.sum(gdir * edir, axis = 0)), vmod, atol = atol)
+            amod  = np.sum(gdir * edir, axis = 0)
+            #print('vmod ', vmod.shape)
+            #print('amod ', amod.shape)
+            cond = np.isclose(amod, vmod, atol = atol)
+            #print('cond ', cond.shape, np.sum(cond))
             xsel = (xsel) & (cond)
         #print('orthog ', np.sum(xsel))
                    
