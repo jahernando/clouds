@@ -21,7 +21,7 @@ nborder = 3
 debug   = False
 plot    = False
 
-def test_gradient(nbins  = 101,
+def test_gradient(nbins  = 21,
                   width  = 10,
                   a0     = 0,
                   a      = (1, -1),
@@ -59,7 +59,7 @@ def test_gradient(nbins  = 101,
     return
     
 
-def test_hessian(nbins  = 101, 
+def test_hessian(nbins  = 21, 
                  width  = 10,
                  b      = (1, -1),
                  c      = (0,),
@@ -85,7 +85,7 @@ def test_hessian(nbins  = 101,
     return
     
 
-def test_laplacian(nbins  = 101, 
+def test_laplacian(nbins  = 21, 
                    width  = 10,
                    b      = (1, -1),
                    c      = (0,),
@@ -130,7 +130,7 @@ def test_rev_matrix(h):
     return
     
 
-def test_det_hessian(nbins  = 101, 
+def test_det_hessian(nbins  = 21, 
                      width  = 10,
                      b      = (1, -1),
                      c      = (0,),
@@ -156,7 +156,7 @@ def test_det_hessian(nbins  = 101,
     return
     
 
-def test_curvature(nbins = 101,
+def test_curvature(nbins = 21,
                    width = 10,
                    b     = (1, -1),
                    c     = (0,),
@@ -168,7 +168,6 @@ def test_curvature(nbins = 101,
     ranges        = ndim * ((a0 - width, a0 + width),)
     
     img, bins     = sources.from_function(fun, nbins, ranges)
-    img          +=  1 - np.min(img) 
     steps         = cu.ut_steps(bins)
     center = tuple([[nborder, -nborder] for i in range(ndim)])
     
@@ -195,7 +194,7 @@ def test_curvature(nbins = 101,
     return
 
 
-def test_curvatures(nbins = 101,
+def test_curvatures(nbins = 21,
                     width = 10,
                     b     = (1, -1),
                     c     = (0,),
@@ -232,7 +231,7 @@ def test_curvatures(nbins = 101,
     return
 
 
-def test_min_curvature(nbins = 101,
+def test_min_curvature(nbins = 21,
                        width = 10,
                        b     = (1, -1),
                        c     = (0,),
@@ -272,8 +271,9 @@ def test_min_curvature(nbins = 101,
         assert np.isclose(np.mean(np.abs(edir[i][center])), edir0[i], atol = atol), \
                 ' not good min curvature dir ' + str(i) 
 
+    return
 
-def test_min_transverse_curvature(nbins = 101,
+def test_min_transverse_curvature(nbins = 21,
                                   width = 10,
                                   b     = (1, -1),
                                   c     = (0,),
@@ -321,7 +321,7 @@ def test_min_transverse_curvature(nbins = 101,
 
 
 
-def test_features(nbins = 101,
+def test_features(nbins = 41,
                   ranges = ((-1, 1), (-1, 1)),
                   a0     = 0,
                   a      = (1, -1),

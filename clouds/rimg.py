@@ -14,152 +14,6 @@ import numpy             as np
 
 import clouds.utils      as cu
 import clouds.filters    as filters
-
-#import scipy.ndimage     as ndimg
-
-#import scipy.sparse.csgraph as scgraph
-
-#import collections
-#import functools
-#import operator
-
-#import clouds.ridges     as ridges
-#import tables            as tb
-
-#from collections import namedtuple
-
-
-#
-#  get elements
-#
-
-    
-#--- Filters
-
-
-
-# def edge_filter(img        : np.array,
-#                 steps      : tuple = None,
-#                 mask       : np.array = None,
-#                 hard       : bool = True,
-#                 perc       : float = 100):
-
-#     shape = img.shape
-#     mask  = np.full(shape, True) if mask is None else mask
-    
-#     bins, cells, enes = _cells(img, steps, mask = mask)
-#     egrad, edir, _    = _gradient(bins, mask, cells, enes)
-#     efil   = mask.flatten()
-#     if (hard):
-#         efil              = _edge_filter(bins, mask, cells, egrad, edir)
-    
-#     nfil        = np.full(shape, False, dtype = bool)
-#     ngrad       = np.zeros(shape)
-#     nfil [mask] = efil
-#     ngrad[mask] = egrad
-        
-#     cut0  = np.percentile(egrad[efil], 100 - perc)    
-#     umask = ngrad > cut0
-#     nfil [~umask] = False
-    
-#     #nfil, _ = np.histogramdd(cells, bins, weights = efil)
-#     return nfil, ngrad
- 
-    
-# def ridge_filter(img   : np.array,
-#                  steps : tuple = None,
-#                  perc  : float = 100,
-#                  hard: bool = True,
-#                  mask  : np.array = None):
-    
-#     shape = img.shape
-#     mask  = np.full(shape, True) if mask is None else mask
-
-#     bins, cells, enes = _cells(img, steps, mask = mask)
-#     egrad, edir, _    = _gradient(bins, mask, cells, enes)
-
-#     xfil        = mask.flatten()
-#     rv, _, _, _ = _curvature_transverse(bins, mask, cells, enes, edir)
-    
-#     if (hard):
-#         xfil, rv = _ridge_filter(bins, mask, cells, enes, edir)
-    
-#     xfil = xfil if hard else mask.flatten()
-    
-#     nfil       = np.full(shape, False, dtype = bool)
-#     nval       = np.zeros(shape)
-#     nfil[mask] = xfil
-#     nval[mask] = rv
-    
-#     cut0  = np.percentile(rv, perc)    
-#     umask = nval <= cut0
-#     nfil [~umask] = False
-    
-#     return nfil, nval
-
-
-# def ridge_lambda_filter(img   : np.array,
-#                         steps : tuple = None,
-#                         perc  : float = 100,
-#                         hard : bool = True,
-#                         mask  : np.array = None):
-    
-#     shape = img.shape
-#     mask  = np.full(shape, True) if mask is None else mask
-
-#     egrad, edir = gradient     (img, steps, mask)
-#     mcur , mdir = min_curvature(img, steps, mask)
-
-#     xfil = mask & (mcur < 0)
-#     if (hard):
-#         xfil = (xfil) & (np.isclose(np.sum(edir * mdir, axis = 0), 0))
-
-#     if (np.sum(xfil) > 0):
-#         cut0  = np.percentile(mcur[xfil], perc)    
-#         xfil = (xfil) & (mcur < cut0)
-    
-#     nfil = np.full(shape, False)
-#     nfil[xfil] = True
-    
-#     return nfil, mcur
-
-
-
-# def node_filter(img   : np.array,
-#                 steps : tuple = None,
-#                 mask  : np.array = None):
-    
-#     shape = img.shape
-#     mask  = np.full(shape, True) if mask is None else mask
-#     bins, cells, enes = _cells(img, steps, mask = mask)
-#     egrad, _, _       = _gradient(bins, mask, cells, enes)
-    
-#     isnode  = np.isclose(egrad, 0)
-    
-#     nfil, _ = np.histogramdd(cells, bins, weights = isnode)
-    
-#     return nfil.astype(bool)
-    
-
-# def blob_filter(img : np.array,
-#                 steps = None,
-#                 mask  = None,
-#                 extended = False):
-    
-#     shape = img.shape
-#     mask  = np.full(shape, True) if mask is None else mask
-#     lap  = laplacian(img, steps, mask, extended)
-#     umask = (mask) & (-lap >0)
-#     nfil = node_filter(-lap, steps, mask = umask)
-    
-#     #bins, mask, cells, enes = mask(img, steps, mask = mask)
-#     #lap                     = _laplacian(bins, mask, cells, enes, extended = extended)
-    
-#     #nlap, _  = np.histogramdd(cells, bins, weights = -lap)
-#     #nfil     = node_filter(nlap, steps)
-
-#     return nfil
-
     
 #--- math objects
 
@@ -283,25 +137,6 @@ def min_transverse_curvature(img, steps = None, mask = None):
     return ncurv, ndir
 
 
-# def transverse_curvatures(img, edir, steps = None, mask = None): 
-    
-#     mask = np.full(img.shape, True) if mask is None else mask
-
-#     bins, cells, enes = _cells(img, steps, mask = mask)
-
-#     curvs = _transverse_curvatures(bins, mask, cells, enes, edir)
-    
-#     ncurvs = []
-#     for curv in curvs:
-#         ncurv = np.zeros(img.shape)
-#         ncurv[mask] = curv
-#         ncurvs.append(ncurv)
-
-#     return ncurvs
-
-#     return
-
-
 # filters
 #------------------------
 
@@ -370,44 +205,6 @@ def _cells(img, steps = None, x0 = None, mask = None):
 
     
 
-# def _dene(bins, mask, cells, enes):
-
-#     ndim, size   = len(cells), len(enes)
-#     steps        = _steps(bins)
-#     ids          = np.arange(size)
-    
-#     potential, _ = np.histogramdd(cells, bins, weights = enes)
-#     kid, _       = np.histogramdd(cells, bins, weights = ids)
-
-#     nn_dir       = np.zeros(potential.shape + (ndim,))
-#     nn_potential = np.zeros(potential.shape)
-#     nn_kid       = np.copy(kid)
-    
-#     #moves = get_moves_updown(ndim)
-#     for move in moves(ndim):
-
-#        #vmove = steps * move
-#        # mmove = np.sqrt(np.sum(vmove * vmove))
-        
-#         coors_next         = [cells[i] + steps[i] * move[i] for i in range(ndim)]
-#         potential_next, _  = np.histogramdd(coors_next, bins, weights = enes)
-#         kid_next, _        = np.histogramdd(coors_next, bins, weights = ids)
-
-#         sel_next           = potential_next > nn_potential
-#         sel                = (mask) & (sel_next)
-        
-#         nn_potential[sel]  = potential_next[sel]
-#         nn_kid[sel]        = kid_next[sel]
-#         for i in range(ndim):
-#             nn_dir[sel, i] = -move[i]
-    
-#     epot  = nn_potential[mask] - potential[mask]
-#     edir  = nn_dir[mask, :]
-#     epath = nn_kid[mask]
-    
-#     return epot, edir, epath    
-
-
 def _gradient(bins, mask, cells, enes):
     
     ndim, size   = len(cells), len(enes)
@@ -449,51 +246,6 @@ def _gradient(bins, mask, cells, enes):
         
     return egrad, edir, epath
     
-    
-
-# def _gradient_bin(bins, mask, cells, enes):
-    
-#     ndim  = len(cells)
-#     size  = len(cells[0])
-#     steps = _steps(bins)
-#     print('steps ', steps)
-#     ids   = np.arange(size)
-    
-#     potential, _ = np.histogramdd(cells, bins, weights = enes)
-#     kids, _      = np.histogramdd(cells, bins, weights = ids)
-
-#     nn_potential = np.copy(potential)
-#     nn_grad      = np.zeros(potential.shape)
-#     nn_dir       = np.zeros(potential.shape + (ndim,))
-#     nn_kids      = np.copy(kids) .astype(int)
-    
-#     #moves = get_moves_updown(ndim)
-#     for i, move in enumerate(moves(ndim)):
-
-#         vmove  = np.array([steps[i] * move[i] for i in range(ndim)])
-#         vmode  = np.sqrt(np.sum(vmove * vmove))
-#         coors_next         = [cells[i] + steps[i] * move[i] for i in range(ndim)]
-#         potential_next, _  = np.histogramdd(coors_next, bins, weights = enes)
-#         kids_next, _       = np.histogramdd(coors_next, bins, weights = ids)
-
-#         sel_pot_next       = potential_next > nn_potential
-#         sel                = (mask) & (sel_pot_next)
-        
-#         nn_potential[sel]  = potential_next [sel]
-#         #nn_move     [sel]  = i
-#         nn_grad     [sel]  = (potential_next[sel] - potential[sel])/vmode
-#         nn_kids     [sel]  = kids_next      [sel]
-#         for i in range(ndim):
-#             nn_dir[sel, i] = -move[i]
-
-
-
-#     egrad = nn_grad[mask]
-#     epath = nn_kids[mask]
-#     edir  = nn_dir[mask, :]
-#     #emove = nn_move[mask]
-    
-#     return egrad, edir, epath
     
     
 def _curvature(bins, mask, cells, enes, edir):
@@ -537,50 +289,6 @@ def _laplacian(bins, mask, cells, enes, extended = False):
         icur = _curvature(bins, mask, cells, enes, move)
         lap += icur
     return lap
-
-
-# def _curvature_transverse(bins, mask, cells, enes, edir):    
-    
-#     ndim,size    = len(cells), len(cells[0])
-
-#     potential, _ = np.histogramdd(cells, bins, weights = enes)
-#     shape        = potential.shape
-#     nn_curvemin  = np.zeros(shape)
-#     nn_curvemax  = np.zeros(shape)
-#     nn_curve     = np.zeros(shape)
-
-#     edir  = edir * np.ones ((size, ndim)) if (edir.ndim == 1) else edir
-#     #print(edir.shape)
-#     direction = [np.histogramdd(cells, bins, weights = edir[:, i])[0] \
-#                  for i in range(ndim)]
-
-#     curves = [] # temporal holder to return all the curves
-#     for move in moves_face(ndim):
-        
-#         mcur      = _curvature(bins, mask, cells, enes, move)
-#         mcurve, _ = np.histogramdd(cells, bins, weights = mcur)
-        
-#         vdot              = np.zeros(shape)
-#         for i in range(ndim):
-#             vdot += direction[i] * move[i]
-#         sel_transv = np.isclose(vdot, 0)
-        
-#         mcurvesel = (mask) & (sel_transv)
-        
-#         nn_curve[mcurvesel] += mcurve[mcurvesel]
-#         curves.append(mcurve)
-                
-#         sel        = (mcurvesel) & (mcurve < nn_curvemin)
-#         nn_curvemin[sel] = mcurve[sel]
-        
-#         sel        = (mcurvesel) & (mcurve > nn_curvemax)
-#         nn_curvemax[sel] = mcurve[sel]
-
-#     curve    = nn_curve   [mask]
-#     curvemin = nn_curvemin[mask]
-#     curvemax = nn_curvemax[mask]
-
-#     return curve, curvemin, curvemax, curves
 
 
 def _min_curvature(bins, mask, cells, enes):
@@ -664,50 +372,6 @@ def _min_transverse_curvature(bins, mask, cells, enes):
     return mincurve, edir
 
 
-# def _transverse_curvatures(bins, mask, cells, enes, edir):
-    
-#     #TOTHINK
-#     ndim, size = len(cells), len(cells[0])
-#     edir      = edir * np.ones ((size, ndim)) if (edir.ndim == 1) else edir
-#     direction = [np.histogramdd(cells, bins, weights = edir[:, i])[0] \
-#                  for i in range(ndim)]
-#     shape     = direction[0].shape
-    
-#     curvs = []        
-#     for move in moves_face(ndim):
-#         curv      = np.zeros(size)    
-#         vdot      = np.zeros(shape)
-#         for i in range(ndim): vdot += direction[i] * move[i]
-#         sel_orth  = np.isclose(vdot, 0)
-
-#         mcurve    = _curvature(bins, mask, cells, enes, move)
-
-#         sel       = (mask) & (sel_orth)
-#         sel       = sel.flatten()
-#         if (np.sum(sel) > 0):
-#             curv[sel] += mcurve[sel]
-#         curvs.append(curv)
-        
-#     return curvs
-
-    
-
-# def _transverse_curvature(bins, mask, cells, ene, edir):
-    
-#     ndim, size   = len(cells), len(cells[0])
-#     potential, _ = np.histogramdd(cells, bins, weights = enes)
-#     mincurve  = np.zeros(size)
-        
-#     for move in moves_face(ndim):
-        
-#         if not moves_orthogonal(move, edir): continue
-#         mcur         = _curvature(bins, mask, cells, enes, move)
-#         mincurve    += mcurve
-        
-#     return mincurve
-    
-#  Internal filters        
-
 def _edge_filter(bins, mask, cells, egrad, edir):
     
     ndim         = len(cells)
@@ -727,110 +391,6 @@ def _edge_filter(bins, mask, cells, egrad, edir):
     edge = sel[mask]
     
     return edge
-
-
-
-def _ridge_filter(bins, mask, cells, enes, edir):
-
-    ndim, size = len(cells), len(cells[0])
-    
-    vcur, _, _, _ = _curvature_transverse(bins, mask, cells, enes, edir)
-    
-    ridge   = np.full(size, True, dtype = bool)
-    ncurv   = np.full(size, 0)
-    ncurv   = vcur
-
-    for move in moves_face(ndim):
-        #if (np.sum(move) <= 0): continue
-        #print(move)
-        dmove = np.zeros((size, ndim), dtype = int)
-        for i in range(ndim):
-            dmove[:, i] = move[i]
-        #print(dmove.shape)
-        acur, _, _, _ = _curvature_transverse(bins, mask, cells, enes, dmove)
-        
-        sel         = acur < vcur 
-        ridge[sel]  = False
-        ncurv[sel]  = ncurv[sel]
-    
-    sel        = vcur >= 0
-    ridge[sel] = False
-    
-    return ridge, ncurv
-
-# def normal_laplacian(bins, mask, cells, enes, sigma = 1, steps = None, extended = True):
-    
-#     ndim   = len(cells)
-#     steps  = np.ones(ndim) if steps is None else np.array(steps)
-#     sigmas = sigma / steps
-#     #print(sigmas)
-#     img, _  = np.histogramdd(cells, bins, weights = enes) 
-#     simg   = ndimg.gaussian_filter(img, sigmas)
-#     wenes  = simg[mask]
-#     #lap  = sigma * ndimg.laplace(simg)
-#     lap    = sigma * laplace(bins, mask, cells, wenes, extended = extended)
-#     return lap
-
-
-# xsigmas = np.linspace(0.2, 2, 10)
-
-# def blob_filter(bins, mask, cells, weights, sigmas = (1,), extended = True):
-
-#     size    = len(cells[0])
-#     nsigmas = len(sigmas)
-#     steps   = _steps(bins)
-    
-#     img, _  = np.histogramdd(cells, bins, weights = weights)     
-    
-#     nlaps = np.zeros((size, nsigmas))
-#     msigmas = np.zeros(size)
-#     mlap    = np.zeros(size)
-#     hasmax  = np.full(size, False)
-#     for i, sigma in enumerate(sigmas):
-#         nlap   = - normal_laplacian(bins, mask, cells, weights, sigma, steps, extended)
-#         sel    = nlap > mlap
-#         mlap   [sel] = nlap[sel]
-#         usel   = (nlap > 0) & (nlap < mlap)
-#         hasmax[usel] = True
-#         msigmas[sel] = 1.8 * sigma
-#         nlaps[:, i]  = nlap
-        
-#     return msigmas, mlap, hasmax, nlaps
-
-
-
-
-#
-#--- Utilities
-#
-
-# def ut_scale(values, a = 0, b = 1):
-   
-#     xmin, xmax = np.min(values), np.max(values)
-#     scale  = (values - xmin)/(xmax - xmin)
-#     return scale
-
-# def ut_centers(xs : np.array) -> np.array:
-#     return 0.5* ( xs[1: ] + xs[: -1])
-
-
-# def arstep(x, step, delta = False):
-#     delta = step/2 if delta else 0.
-#     return np.arange(np.min(x) - delta, np.max(x) + step + delta, step)
-
-
-# def to_coors(vs):
-#     ndim = len(vs[0])
-#     xs = [np.array([vi[i] for vi in vs]) for i in range(ndim)]
-#     return xs
-
-
-# def ut_sort(values, ids, reverse = True):
-    
-#     vals_ = sorted(zip(values, ids), reverse = reverse)
-#     vals  = np.array([v[0] for v in vals_])
-#     kids  = np.array([v[1] for v in vals_])
-#     return vals, kids
 
 
 #   Moves
@@ -877,6 +437,7 @@ def moves_pos(ndim):
     movs = [mov for mov in movs if _ok(mov)] 
     return movs
 
+
 def moves_axis(ndim):
     movs = moves(ndim)
     _ok = lambda x: (np.sum(x*x) <= 1) & (np.sum(x) == 1) 
@@ -894,7 +455,7 @@ def moves_orthogonal(mov0, mov1):
     
 
 #
-#  Path Utilites
+#  Path Utilites - TODO export to clouds
 #
 
 def get_path(kid, epath):
@@ -947,59 +508,4 @@ def get_segment(cells, kids):
 
 
 
-#  debugging 
-#----------
-
-def _edge_filter_hard(img       : np.array,
-                      steps     : tuple = None,
-                      perc      : float = 80,
-                      mask      : np.array = None):
-
-    shape = img.shape
-    mask  = np.full(shape, True) if mask is None else mask
-    
-    bins, cells, enes  = _cells(img, steps, mask = mask)
-    egrad, edir, epath = _gradient(bins, mask, cells, enes)
-    
-    size = len(enes)
-    kid  = np.arange(size).astype(int)
-    xfil = egrad[epath] < egrad[kid]
-    for k in np.argwhere(kid == True):
-        ok = np.max(egrad[epath == k]) < egrad[k]
-        xfil[k] = ok
-    
-    nfil        = np.full(shape, False, dtype = bool)
-    ngrad       = np.zeros(shape)
-    nfil [mask] = xfil
-    ngrad[mask] = egrad
-    
-    #nfil, _ = np.histogramdd(cells, bins, weights = efil)
-    return nfil, ngrad
-
-#---- Analysis
-
-# def analysis(df, name = 'e'):
-    
-#     true = df.istrue.values
-#     ext  = df.isext .values
-#     cells_types = (name + 'isnode', name +'isborder',
-#                    name + 'ispass', name +'isridge', 'iscore')
-    
-#     dat = {}
-#     for itype in cells_types:
-#         vals  = df[itype].values  
-#         ntot  = np.sum(vals)
-#         yes   = vals & true
-#         noes  = vals & (~true)
-#         nyes  = np.sum(yes)
-#         nnoes = np.sum(noes)
-#         isext = np.sum(vals & ext)
-#         eff   = float(nyes/ntot) if ntot >0 else -1
-#         dat[name+itype+'_success']  = nyes
-#         dat[name+itype+'_extreme']  = isext
-#         dat[name+itype+'_failures'] = nnoes
-#         dat[name+itype+'_eff']      = eff
-#     return dat       
-        
-    
 
