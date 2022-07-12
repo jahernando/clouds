@@ -70,6 +70,7 @@ def _scale(values, a = 0, b = 1):
     return scale
 
 
+
 def voxels(cells, bins, values = None, **kargs):
     
     size   = len(cells[0])
@@ -99,6 +100,37 @@ def voxels(cells, bins, values = None, **kargs):
     
     return
     
+def grads(cells, bins, cloud, name = 'e', **kargs):
+    """ Draw the gradient of the cells
+    """
+
+    ndim   = len(cells)
+    coors  = cells
+    epath     = cloud[name+'path']    .values
+    vcoors = cells_select(cells, epath)
+    
+    xdirs =[vcoor - coor for vcoor, coor in zip(vcoors, coors)]
+    opts = {'scale_units': 'xy', 'scale' : 2.} if ndim == 2 else {'length' : 0.4}
+
+    plt.gca().quiver(*coors, *xdirs, **opts, **kargs)
+    
+    return
+
+
+def ridges(cells, bins, cloud, name = 'e', **kargs):
+    
+    epath     = cloud[name+'path']    .values
+    elink     = cloud[name+'link']    .values
+    eispass   = cloud[name+'ispass']  .values
+  
+    
+    paths  = clouds.get_new_ridges(eispass, epath, elink)
+    for path in paths:
+        draw_path(cells, path, **kargs)
+        
+    return  
+
+
 draw_histd = voxels
 
 options = {'cloud'   : {'alpha'  : 0.2},
